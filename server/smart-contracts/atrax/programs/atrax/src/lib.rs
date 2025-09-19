@@ -17,7 +17,7 @@ pub mod atrax {
         cfg.admin = ctx.accounts.admin.key();
         cfg.dev_wallet = dev_wallet;
         cfg.fee_bps = fee_bps;
-        cfg.bump = *ctx.bumps.get("config").unwrap();
+        cfg.bump = ctx.bumps.config;
 
         emit!(ConfigInitialized { admin: cfg.admin, dev_wallet, fee_bps });
         Ok(())
@@ -122,19 +122,25 @@ pub mod atrax {
         Ok(())
     }
 
-    // Land ownership record; init if missing; only current owner can transfer.
+    // Land transfer requires prior initialization.
     pub fn transfer_land(ctx: Context<TransferLand>, land_id: u64, new_owner: Pubkey) -> Result<()> {
         let land = &mut ctx.accounts.land;
-        if land.initialized == 0 {
-            // initialize on first use
-            land.land_id = land_id;
-            land.owner = ctx.accounts.owner.key();
-            land.bump = *ctx.bumps.get("land").unwrap();
-            land.initialized = 1;
-        }
+        require!(land.initialized == 1, AtraxError::LandNotInitialized);
+        require!(land.land_id == land_id, AtraxError::InvalidLandId);
         require_keys_eq!(land.owner, ctx.accounts.owner.key(), AtraxError::Unauthorized);
         land.owner = new_owner;
         emit!(LandTransferEvent { land_id, new_owner });
+        Ok(())
+    }
+
+    // Initialize land PDA for owner.
+    pub fn initialize_land(ctx: Context<InitializeLand>, land_id: u64) -> Result<()> {
+        let land = &mut ctx.accounts.land;
+        land.land_id = land_id;
+        land.owner = ctx.accounts.owner.key();
+        let (_pda, bump) = Pubkey::find_program_address(&[b"land", ctx.accounts.owner.key.as_ref()], &crate::ID);
+        land.bump = bump;
+        land.initialized = 1;
         Ok(())
     }
 
@@ -243,20 +249,32 @@ pub struct TransferLand<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
     #[account(
-        init_if_needed,
-        payer = owner,
-        space = 8 + LandAccount::LEN,
-        seeds = [b"land", &owner.key().to_bytes()],
+        mut,
+        seeds = [b"land", owner.key().as_ref()],
         bump
     )]
     pub land: Account<'info, LandAccount>,
-    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct ClaimProfit<'info> {
     #[account(mut)]
     pub claimer: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeLand<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    #[account(
+        init,
+        payer = owner,
+        space = 8 + LandAccount::LEN,
+        seeds = [b"land", owner.key().as_ref()],
+        bump
+    )]
+    pub land: Account<'info, LandAccount>,
+    pub system_program: Program<'info, System>,
 }
 
 // =========================
@@ -315,4 +333,8 @@ pub enum AtraxError {
     Unauthorized,
     #[msg("Math overflow")] 
     MathOverflow,
+    #[msg("Land account is not initialized")] 
+    LandNotInitialized,
+    #[msg("Provided land id does not match record")] 
+    InvalidLandId,
 }
