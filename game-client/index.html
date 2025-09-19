@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atrax World - Game</title>
+    <link rel="stylesheet" href="css/game.css">
+    <link rel="stylesheet" href="css/ui.css">
+    <link rel="stylesheet" href="css/pixel-art.css">
+</head>
+<body>
+    <!-- Game Container -->
+    <div id="game-container">
+        <!-- Game Canvas -->
+        <div id="game-canvas-container">
+            <canvas id="game-canvas" width="1024" height="768"></canvas>
+            <canvas id="ui-canvas" width="1024" height="768"></canvas>
+        </div>
+        
+        <!-- Game UI -->
+        <div id="game-ui">
+            <!-- Top Bar -->
+            <div id="top-bar">
+                <div id="player-info">
+                    <span id="player-name">Player</span>
+                    <span id="sol-balance">0 SOL</span>
+                </div>
+                <div id="world-info">
+                    <span id="world-name">World 1</span>
+                    <span id="village-name">Plains Village</span>
+                </div>
+                <div id="connection-status">
+                    <span id="connection-indicator">●</span>
+                    <span id="player-count">0 players</span>
+                </div>
+            </div>
+            
+            <!-- Bottom Bar -->
+            <div id="bottom-bar">
+                <div id="inventory-panel">
+                    <button id="inventory-btn" class="ui-btn">Inventory</button>
+                    <button id="shop-btn" class="ui-btn">Shop</button>
+                    <button id="building-btn" class="ui-btn">Build</button>
+                    <button id="land-btn" class="ui-btn">Land</button>
+                </div>
+                <div id="chat-panel">
+                    <div id="chat-messages"></div>
+                    <input type="text" id="chat-input" placeholder="Type a message...">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modals -->
+        <div id="modals">
+            <!-- Stream Setup Modal -->
+            <div id="stream-setup-modal" class="modal">
+                <div class="modal-content">
+                    <h2>Stream Setup</h2>
+                    <p>Bạn có đang livestream không?</p>
+                    <div class="modal-buttons">
+                        <button id="no-stream-btn" class="btn btn-secondary">Không</button>
+                        <button id="yes-stream-btn" class="btn btn-primary">Có</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- YouTube Link Modal -->
+            <div id="youtube-modal" class="modal">
+                <div class="modal-content">
+                    <h2>YouTube Stream Link</h2>
+                    <p>Nhập link YouTube stream của bạn:</p>
+                    <input type="text" id="youtube-link" placeholder="https://youtube.com/watch?v=...">
+                    <div class="modal-buttons">
+                        <button id="cancel-youtube-btn" class="btn btn-secondary">Cancel</button>
+                        <button id="confirm-youtube-btn" class="btn btn-primary">Confirm</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Wallet Connect Modal -->
+            <div id="wallet-modal" class="modal">
+                <div class="modal-content">
+                    <h2>Connect Wallet</h2>
+                    <p>Choose your Solana wallet:</p>
+                    <div class="wallet-options">
+                        <button id="phantom-btn" class="wallet-btn">Phantom</button>
+                        <button id="solflare-btn" class="wallet-btn">Solflare</button>
+                        <button id="glow-btn" class="wallet-btn">Glow</button>
+                        <button id="metamask-btn" class="wallet-btn">MetaMask</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+        <script src="js/audio/AudioManager.js"></script>
+        <script src="js/game/InputHandler.js"></script>
+        <script src="js/game/Player.js"></script>
+        <script src="js/game/World.js"></script>
+        <script src="js/game/GameEngine.js"></script>
+        <script src="js/main.js"></script>
+</body>
+</html>
