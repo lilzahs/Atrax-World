@@ -1,0 +1,4 @@
+* { box-sizing: border-box; }
+html, body, #__next { height: 100%; }
+body { margin: 0; font-family: system-ui, Segoe UI, Arial, sans-serif; }
+
