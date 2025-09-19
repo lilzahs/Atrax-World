@@ -12,7 +12,7 @@ atrax = "35eYtQ3hgAqmDUtwcEQ6WFKfQri7figJGe9vR25mmMiC"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
