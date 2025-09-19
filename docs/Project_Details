@@ -174,11 +174,12 @@ User visits atrax-world.com
 - **Chia lợi nhuận:** 50% cho viewer khi streamer có lời
 
 ### Smart Contracts Cần Thiết
-1. **Donation Contract** - Xử lý donate từ viewer
-2. **Player Trading Contract** - Giao dịch giữa người chơi
-3. **Shop Contract** - Mua items từ dev shop
-4. **Profit Sharing Contract** - Chia lợi nhuận cho viewer
-5. **Land Ownership Contract** - Quản lý quyền sở hữu đất
+Giai đoạn demo: gộp 5 chức năng vào một Anchor program duy nhất tên "atrax" (đơn giản hóa phát triển). Mỗi chức năng là một instruction trong program:
+1. **donate** — Xử lý donate từ viewer (chia fee theo bps)
+2. **trade_item** — Giao dịch giữa người chơi (fee cho dev)
+3. **buy_item** — Mua items từ dev shop (100% về dev)
+4. **claim_profit** — Claim lợi nhuận (stub, sẽ bổ sung vault)
+5. **transfer_land** — Quản lý quyền sở hữu đất
 
 ### Luồng Giao Dịch
 ```

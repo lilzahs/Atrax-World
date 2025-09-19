@@ -91,17 +91,17 @@
 ### Phase 1: Server Setup (Duy - Blockchain)
 
 #### 1.1 Solana Smart Contracts
-**Files cần tạo:**
+**Cấu trúc (gộp 1 program):**
 ```
-server/smart-contracts/
-├── donation-contract/
-│   ├── lib.rs
-│   ├── Cargo.toml
-│   └── tests/
-├── trading-contract/
-├── shop-contract/
-├── profit-sharing-contract/
-└── land-contract/
+server/smart-contracts/atrax/
+├── Anchor.toml
+├── Cargo.toml
+├── programs/
+│   └── atrax/
+│       └── src/
+│           └── lib.rs   # Tạm thời dồn toàn bộ instructions vào một file
+└── tests/
+    └── atrax.ts
 ```
 
 **Hướng dẫn cho Duy:**
@@ -117,30 +117,33 @@ server/smart-contracts/
    anchor init atraxd-contract
    ```
 
-2. **Donation Contract Structure**
+2. **Atrax Program Structure**
    ```rust
-   // lib.rs - Main contract logic
    use anchor_lang::prelude::*;
-   
+
    #[program]
-   pub mod donation_contract {
+   pub mod atrax {
        use super::*;
-       
-       pub fn donate(ctx: Context<Donate>, amount: u64) -> Result<()> {
-           // Transfer SOL from viewer to streamer
-           // Take 10% fee for dev
-           // Emit donation event
-           Ok(())
-       }
+
+       pub fn initialize(ctx: Context<Initialize>, dev_wallet: Pubkey, fee_bps: u16) -> Result<()> { Ok(()) }
+       pub fn update_config(ctx: Context<UpdateConfig>, dev_wallet: Pubkey, fee_bps: u16) -> Result<()> { Ok(()) }
+
+       pub fn donate(ctx: Context<Donate>, amount: u64) -> Result<()> { Ok(()) }
+       pub fn buy_item(ctx: Context<BuyItem>, item_id: u16, amount: u64) -> Result<()> { Ok(()) }
+       pub fn trade_item(ctx: Context<TradeItem>, item_id: u16, amount: u64) -> Result<()> { Ok(()) }
+
+       pub fn transfer_land(ctx: Context<TransferLand>, land_id: u64, new_owner: Pubkey) -> Result<()> { Ok(()) }
+       pub fn claim_profit(ctx: Context<ClaimProfit>, amount: u64) -> Result<()> { Ok(()) }
    }
    ```
 
-3. **Key Functions cần implement:**
-   - `donate()` - Xử lý donation từ viewer
-   - `buy_item()` - Mua item từ shop
-   - `trade_item()` - Giao dịch giữa players
-   - `claim_profit()` - Claim lợi nhuận cho viewer
-   - `transfer_land()` - Chuyển nhượng đất
+3. **Instructions cần implement (trong 1 program):**
+   - `initialize`, `update_config`
+   - `donate` - Xử lý donation từ viewer
+   - `buy_item` - Mua item từ shop
+   - `trade_item` - Giao dịch giữa players
+   - `claim_profit` - Claim lợi nhuận cho viewer (stub)
+   - `transfer_land` - Chuyển nhượng đất
 
 #### 1.2 SolanaManager.js
 **Hướng dẫn:**
@@ -157,15 +160,15 @@ class SolanaManager {
     }
     
     async processDonation(donorWallet, streamerWallet, amount, itemId) {
-        // Call donation smart contract
+        // Call atrax program: donate
     }
     
     async buyFromShop(playerWallet, itemId, amount) {
-        // Call shop smart contract
+        // Call atrax program: buy_item
     }
     
     async tradeItems(sellerWallet, buyerWallet, itemId, price) {
-        // Call trading smart contract
+        // Call atrax program: trade_item
     }
 }
 ```
