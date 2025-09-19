@@ -100,3 +100,11 @@ class InputHandler {
         return { x: this.mouse.x, y: this.mouse.y };
     }
 }
+// Thêm method mới:
+handleBuildingClick(x, y, buildingType) 
+{
+    if (this.onBuildingClick)
+    {
+        this.onBuildingClick(x, y, buildingType);
+    }
+}

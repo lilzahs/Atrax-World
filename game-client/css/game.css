@@ -3,7 +3,10 @@
     width: 100vw;
     height: 100vh;
     position: relative;
-    background: #1a1a1a;
+    background: url('../assets/images/backgrounds/main-background.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
     overflow: hidden;
 }
 
@@ -20,7 +23,10 @@
     position: absolute;
     top: 0;
     left: 0;
-    background: #2d5016; /* Default grass color */
+    background: url('../assets/images/backgrounds/game-background.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
@@ -320,4 +326,617 @@
     display: inline-block;
     margin-right: 8px;
     vertical-align: middle;
+}
+/* Building Menu Styles */
+#building-menu {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: url('../assets/images/ui/modals/building-menu-bg.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    padding: 20px;
+    border-radius: 10px;
+    z-index: 1000;
+    border: 2px solid #4CAF50;
+    min-width: 400px;
+    min-height: 300px;
+}
+
+.building-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.building-option {
+    padding: 15px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    transition: background 0.3s;
+    min-width: 100px;
+}
+
+.building-option:hover {
+    background: #45a049;
+}
+
+.building-option.selected {
+    background: #FF9800;
+}
+
+.building-option.selected:hover {
+    background: #F57C00;
+}
+
+/* Building Info Panel */
+.building-info {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+    color: white;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.building-cost {
+    display: flex;
+    justify-content: space-between;
+    margin: 5px 0;
+}
+
+.cost-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.cost-icon {
+    width: 16px;
+    height: 16px;
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+/* Building Mode Indicator */
+.building-mode-active {
+    border: 2px solid #FF9800 !important;
+    background: rgba(255, 152, 0, 0.2) !important;
+}
+
+/* Building Preview */
+.building-preview {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0.7;
+    border: 2px dashed #4CAF50;
+    background: rgba(76, 175, 80, 0.3);
+    z-index: 5;
+}
+
+.building-preview.invalid {
+    border-color: #f44336;
+    background: rgba(244, 67, 54, 0.3);
+}
+/* Inventory System Styles */
+.inventory-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: url('../assets/images/ui/modals/inventory-bg.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 600px;
+    height: 500px;
+    border: 2px solid #4CAF50;
+    border-radius: 10px;
+    z-index: 1000;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+}
+
+.inventory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    color: white;
+    font-family: 'Courier New', monospace;
+}
+
+.inventory-header h3 {
+    margin: 0;
+    font-size: 24px;
+    color: #4CAF50;
+}
+
+.close-btn {
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.close-btn:hover {
+    background: #d32f2f;
+}
+
+.inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+    height: 300px;
+    overflow-y: auto;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 5px;
+}
+
+.inventory-slot {
+    width: 80px;
+    height: 80px;
+    border: 2px solid #666;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.inventory-slot.empty {
+    border-style: dashed;
+    border-color: #999;
+}
+
+.inventory-slot.filled {
+    border-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.2);
+}
+
+.inventory-slot:hover {
+    border-color: #FF9800;
+    background: rgba(255, 152, 0, 0.2);
+    transform: scale(1.05);
+}
+
+.inventory-slot.selected {
+    border-color: #FF9800;
+    background: rgba(255, 152, 0, 0.3);
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.5);
+}
+
+.item-icon {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
+
+.item-quantity {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    font-size: 12px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+}
+
+.item-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-family: 'Courier New', monospace;
+    white-space: nowrap;
+    z-index: 1001;
+    display: none;
+    border: 1px solid #4CAF50;
+}
+
+.item-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.9);
+}
+
+.inventory-info {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    border-radius: 5px;
+    color: white;
+    font-family: 'Courier New', monospace;
+}
+
+.selected-item-info {
+    text-align: center;
+}
+
+#selected-item-name {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    color: #4CAF50;
+    margin-bottom: 5px;
+}
+
+#selected-item-desc {
+    display: block;
+    font-size: 14px;
+    color: #ccc;
+}
+
+/* Inventory Actions */
+.inventory-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    justify-content: center;
+}
+
+.inventory-action-btn {
+    padding: 8px 16px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    transition: background 0.3s;
+}
+
+.inventory-action-btn:hover {
+    background: #45a049;
+}
+
+.inventory-action-btn:disabled {
+    background: #666;
+    cursor: not-allowed;
+}
+
+/* Inventory Hotbar */
+.inventory-hotbar {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 5px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 10px;
+    border-radius: 10px;
+    border: 2px solid #4CAF50;
+    z-index: 15;
+}
+
+.hotbar-slot {
+    width: 50px;
+    height: 50px;
+    border: 2px solid #666;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.hotbar-slot.filled {
+    border-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.2);
+}
+
+.hotbar-slot.selected {
+    border-color: #FF9800;
+    background: rgba(255, 152, 0, 0.3);
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.5);
+}
+
+.hotbar-slot:hover {
+    border-color: #FF9800;
+    background: rgba(255, 152, 0, 0.2);
+    transform: scale(1.1);
+}
+
+.hotbar-item-icon {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+}
+
+.hotbar-item-quantity {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    font-size: 10px;
+    padding: 1px 3px;
+    border-radius: 2px;
+    font-family: 'Courier New', monospace;
+}
+/* Shop System Styles */
+.shop-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: url('../assets/images/ui/modals/shop-bg.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 900px;
+    height: 600px;
+    border: 2px solid #4CAF50;
+    border-radius: 10px;
+    z-index: 1000;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+}
+
+.shop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    color: white;
+    font-family: 'Courier New', monospace;
+}
+
+.shop-header h3 {
+    margin: 0;
+    font-size: 24px;
+    color: #4CAF50;
+}
+
+.shop-content {
+    display: flex;
+    height: 500px;
+    gap: 20px;
+}
+
+.shop-sidebar {
+    width: 250px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.shop-categories {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.shop-categories h4 {
+    margin: 0 0 10px 0;
+    color: #4CAF50;
+    font-family: 'Courier New', monospace;
+}
+
+.category-btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    background: #666;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    transition: background 0.3s;
+}
+
+.category-btn:hover {
+    background: #777;
+}
+
+.category-btn.active {
+    background: #4CAF50;
+}
+
+.shop-cart {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    border-radius: 5px;
+    flex: 1;
+}
+
+.shop-cart h4 {
+    margin: 0 0 10px 0;
+    color: #4CAF50;
+    font-family: 'Courier New', monospace;
+}
+
+.cart-items {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+}
+
+.cart-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    margin-bottom: 5px;
+    font-size: 12px;
+    color: white;
+}
+
+.cart-item-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
+.cart-item-name {
+    flex: 1;
+    font-family: 'Courier New', monospace;
+}
+
+.cart-item-price {
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+.remove-from-cart {
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.cart-total {
+    text-align: center;
+    margin-bottom: 15px;
+    color: #4CAF50;
+    font-family: 'Courier New', monospace;
+    font-size: 16px;
+}
+
+.checkout-btn {
+    width: 100%;
+    padding: 12px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 16px;
+    font-weight: bold;
+    transition: background 0.3s;
+}
+
+.checkout-btn:hover:not(:disabled) {
+    background: #45a049;
+}
+
+.checkout-btn:disabled {
+    background: #666;
+    cursor: not-allowed;
+}
+
+.shop-main {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.shop-items h4 {
+    margin: 0 0 15px 0;
+    color: #4CAF50;
+    font-family: 'Courier New', monospace;
+}
+
+.items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.shop-item {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid #666;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    transition: all 0.3s;
+    color: white;
+}
+
+.shop-item:hover {
+    border-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.2);
+    transform: translateY(-2px);
+}
+
+.shop-item .item-icon {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+    margin-bottom: 10px;
+}
+
+.shop-item h5 {
+    margin: 0 0 5px 0;
+    color: #4CAF50;
+    font-family: 'Courier New', monospace;
+}
+
+.shop-item p {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+    color: #ccc;
+    font-family: 'Courier New', monospace;
+}
+
+.item-price {
+    color: #FF9800;
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 10px;
+    font-family: 'Courier New', monospace;
+}
+
+.add-to-cart-btn {
+    width: 100%;
+    padding: 8px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    transition: background 0.3s;
+}
+
+.add-to-cart-btn:hover {
+    background: #45a049;
 }

@@ -1,6 +1,6 @@
 # 🎨 Atrax World - Hướng Dẫn Pixel Art & Animation
 
-## 📐 **Đặc Tả Assets**
+## 📐 **Đặc Tả Assets (Cập Nhật)**
 
 ### **Sprite Nhân Vật (32x48 pixel)**
 - **Kích Thước Cơ Bản**: 32x48 pixel (tỷ lệ 2:3)
@@ -8,21 +8,58 @@
 - **Animation**: idle, walk, attack/shoot/charge
 - **Số Frame**: 2-4 frame mỗi animation
 - **Tổng Frame**: 8-16 frame mỗi nhân vật
+- **Biome Variants**: Plains, Desert, Island, Snow (mỗi biome có style riêng)
 
 ### **Sprite Tòa Nhà (64x64 pixel)**
 - **Kích Thước Cơ Bản**: 64x64 pixel (2x2 tiles)
 - **Cấp Nâng Cấp**: 1-5 cấp mỗi loại tòa nhà
 - **Animation**: Chỉ cối xay gió (cánh quạt quay)
 - **Số Frame**: 4-8 frame cho cối xay gió
+- **Types**: House, Farm House, Castle
 
 ### **Sprite Tile (32x32 pixel)**
 - **Kích Thước Cơ Bản**: 32x32 pixel (1x1 tile)
 - **Animation**: Nước, bụi cỏ lăn, vây cá mập
 - **Số Frame**: 4-8 frame mỗi animation
+- **Biome Tiles**: Grass, Sand, Water, Snow, Dirt
 
-### **Sprite Vật Phẩm (24x24 pixel)**
-- **Kích Thước Cơ Bản**: 24x24 pixel
+### **Sprite Vật Phẩm (32x32 pixel) - CẬP NHẬT**
+- **Kích Thước Cơ Bản**: 32x32 pixel (tăng từ 24x24)
 - **Không Animation**: Chỉ vật phẩm tĩnh
+- **Items**: Wood, Stone, Seeds, Food, Tools, Materials, Coins, Gems, Potion, Energy
+
+### **Sprite UI Elements (Various sizes)**
+- **Buttons**: 120x40 pixel (normal, hover, pressed states)
+- **Panels**: 1024x60 pixel (top-bar), 1024x80 pixel (bottom-bar)
+- **Modals**: 600x500 pixel (inventory), 900x600 pixel (shop)
+- **Icons**: 32x32 pixel (wallet icons, UI icons)
+- **Backgrounds**: 1920x1080 pixel (main), 1024x768 pixel (game)
+
+## 📋 **Trạng Thái Dự Án Hiện Tại**
+
+### **✅ Đã Hoàn Thành:**
+- [x] Cấu trúc thư mục assets
+- [x] Placeholder files cho tất cả assets
+- [x] CSS styling cho UI elements
+- [x] Inventory system (cần pixel art)
+- [x] Shop system (cần pixel art)
+- [x] Building system (cần pixel art)
+
+### **🎨 Cần Thiết Kế Ngay:**
+- [ ] **Item Icons** (32x32): 11 items cần thiết kế
+- [ ] **UI Elements**: Buttons, panels, modals
+- [ ] **Background Images**: Main, game, building menu
+- [ ] **Character Sprites** (32x48): 4 biome variants
+- [ ] **Building Sprites** (64x64): 3 types x 5 levels
+- [ ] **Tile Sprites** (32x32): 5 biome types
+
+### **🎯 Ưu Tiên Thiết Kế:**
+1. **Item Icons** - Cần ngay để test inventory/shop
+2. **UI Elements** - Cần để hoàn thiện giao diện
+3. **Background Images** - Cần để thay thế màu trơn
+4. **Character Sprites** - Cần để hiển thị player
+5. **Building Sprites** - Cần để test building system
+6. **Tile Sprites** - Cần để hoàn thiện world
 
 ## 🎯 **Hướng Dẫn Animation**
 
@@ -214,3 +251,25 @@ Sau khi tạo assets:
 5. Kiểm tra hiệu suất tải
 
 Chúc bạn tạo pixel art vui vẻ! 🎨✨
+
+## 🚀 **Bước Tiếp Theo - Wallet Integration**
+
+### **📋 Checklist Trước Khi Tiếp Tục:**
+- [ ] **Sửa toggleInventory method** trong main.js
+- [ ] **Tạo item pixel art** (11 items cần thiết)
+- [ ] **Test inventory system** với pixel art
+- [ ] **Test shop system** với pixel art
+- [ ] **Tạo UI pixel art** (buttons, panels, modals)
+
+### **🎯 Mục Tiêu Tiếp Theo:**
+1. **Wallet Integration** - Kết nối với Solana wallet
+2. **Blockchain Transactions** - Mua bán với SOL
+3. **Stream Integration** - YouTube API
+4. **Multiplayer** - Socket.io integration
+5. **Database** - MongoDB cho player data
+
+### **💡 Lưu Ý Quan Trọng:**
+- **Pixel Art** cần được tạo trước khi test các systems
+- **UI Elements** cần được thiết kế để thay thế CSS colors
+- **Background Images** cần được tạo để thay thế solid colors
+- **Item Icons** là ưu tiên cao nhất để test inventory/shop

@@ -13,7 +13,8 @@ class AtraxWorldGame {
         this.world = null;
         this.gameEngine = null;
         this.audioManager = null;
-        
+        this.inventory = null;
+        this.shop = null;
         // UI elements
         this.modals = {
             streamSetup: document.getElementById('stream-setup-modal'),
@@ -29,7 +30,10 @@ class AtraxWorldGame {
         
         // Initialize audio manager
         this.audioManager = new AudioManager();
-        
+        // Initialize inventory system
+        this.inventory = new Inventory(); 
+        // Initialize shop system
+        this.shop = new Shop();
         // Set up event listeners
         this.setupEventListeners();
         
@@ -98,7 +102,7 @@ class AtraxWorldGame {
         });
         document.getElementById('building-btn').addEventListener('click', () => {
             this.audioManager.playButtonClick();
-            this.toggleBuilding();
+            this.toggleBuildingMode();
         });
         document.getElementById('land-btn').addEventListener('click', () => {
             this.audioManager.playButtonClick();
@@ -272,12 +276,15 @@ class AtraxWorldGame {
     
     toggleInventory() {
         console.log('Toggle inventory');
+        this.audioManager.playButtonClick();
+        this.inventory.toggle();
         // TODO: Implement inventory panel
     }
     
     toggleShop() {
         console.log('Toggle shop');
-        // TODO: Implement shop panel
+        this.audioManager.playButtonClick();
+        this.shop.toggle();        // TODO: Implement shop panel
     }
     
     toggleBuilding() {
@@ -288,6 +295,44 @@ class AtraxWorldGame {
     toggleLand() {
         console.log('Toggle land management');
         // TODO: Implement land management
+    }
+
+    toggleBuildingMode() {
+        this.isBuildingMode = !this.isBuildingMode;
+        if (this.isBuildingMode) {
+            this.showBuildingMenu();
+        } else {
+            this.hideBuildingMenu();
+        }
+    }
+
+    showBuildingMenu() {
+        // Tạo building selection UI
+        const buildingMenu = document.createElement('div');
+        buildingMenu.id = 'building-menu';
+        buildingMenu.innerHTML = `
+            <div class="building-options">
+                <button class="building-option" data-type="house">House</button>
+                <button class="building-option" data-type="farm">Farm</button>
+                <button class="building-option" data-type="castle">Castle</button>
+            </div>
+        `;
+        document.body.appendChild(buildingMenu);
+        
+        // Add event listeners
+        buildingMenu.querySelectorAll('.building-option').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.selectedBuildingType = e.target.dataset.type;
+                this.audioManager.playButtonClick();
+            });
+        });
+    }
+
+    hideBuildingMenu() {
+        const menu = document.getElementById('building-menu');
+        if (menu) {
+            menu.remove();
+        }
     }
 }
 

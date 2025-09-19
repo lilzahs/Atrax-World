@@ -16,6 +16,8 @@ class GameEngine {
         this.player = null;
         this.entities = [];
         this.buildings = [];
+        this.selectedBuildingType = 'house';
+        this.isBuildingMode = false;
         
         // Rendering
         this.camera = { x: 0, y: 0 };
@@ -210,7 +212,7 @@ class GameEngine {
     
     renderBuildings() {
         for (let building of this.buildings) {
-            building.render(this.gameCtx, this.camera);
+            building.render(this.gameCtx, this.camera, this.tileSize);
         }
     }
     
@@ -224,5 +226,15 @@ class GameEngine {
         
         // Render camera info
         this.uiCtx.fillText(`Camera: ${this.camera.x.toFixed(0)}, ${this.camera.y.toFixed(0)}`, 10, 50);
+    }
+
+    addBuilding(x, y, type) {
+        const building = new Building(x, y, type);
+        if (building.place(this.world, x, y)) {
+            this.buildings.push(building);
+            this.audioManager.playBuildingPlace();
+            return building;
+        }
+        return null;
     }
 }
