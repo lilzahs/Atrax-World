@@ -5,103 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Atrax World - Game</title>
     <link rel="stylesheet" href="css/game.css">
-    <link rel="stylesheet" href="css/ui.css">
-    <link rel="stylesheet" href="css/pixel-art.css">
+    <!-- Solana Web3.js -->
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <script src="https://unpkg.com/@coral-xyz/anchor@latest/dist/index.iife.min.js"></script>
 </head>
 <body>
-    <!-- Game Container -->
     <div id="game-container">
-        <!-- Game Canvas -->
-        <div id="game-canvas-container">
-            <canvas id="game-canvas" width="1024" height="768"></canvas>
-            <canvas id="ui-canvas" width="1024" height="768"></canvas>
+        <!-- Home Page -->
+        <div id="home-page" class="page active">
+            <!-- Background -->
+            <div class="home-background"></div>
+            
+            <!-- Logo Section -->
+            <div class="logo-section">
+                <img src="assets/images/backgrounds/logo-atrax.png" alt="Atrax World" class="game-logo">
+            </div>
+            
+            <!-- Wallet Address (Top Left) -->
+            <div id="wallet-address-section" class="wallet-address hidden">
+                <div class="wallet-address-panel">
+                    <span id="wallet-address-text">Fzbs...Jmb</span>
+                </div>
+            </div>
+            
+            <!-- Connect Wallet Section -->
+            <div id="connect-wallet-section" class="connect-wallet-section">
+                <button id="connect-wallet-btn" class="connect-wallet-btn">
+                    <img src="assets/images/ui/buttons/connect-wallet.png" alt="Connect Wallet">
+                </button>
+            </div>
+            
+            <!-- Player Name Input Section -->
+            <div id="player-name-section" class="player-name-section hidden">
+                <div class="name-input-panel">
+                    <input type="text" id="player-name-input" placeholder="Enter your player name" maxlength="20">
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div id="action-buttons" class="action-buttons hidden">
+                <button id="play-btn" class="action-btn play-btn">
+                    <img src="assets/images/ui/buttons/play-gray.png" alt="Play Game" class="btn-image">
+                </button>
+                <button id="watch-btn" class="action-btn watch-btn">
+                    <img src="assets/images/ui/buttons/watch-stream-gray.png" alt="Watch Stream" class="btn-image">
+                </button>
+            </div>
         </div>
         
-        <!-- Game UI -->
-        <div id="game-ui">
-            <!-- Top Bar -->
-            <div id="top-bar">
-                <div id="player-info">
-                    <span id="player-name">Player</span>
-                    <span id="sol-balance">0 SOL</span>
-                </div>
-                <div id="world-info">
-                    <span id="world-name">World 1</span>
-                    <span id="village-name">Plains Village</span>
-                </div>
-                <div id="connection-status">
-                    <span id="connection-indicator">●</span>
-                    <span id="player-count">0 players</span>
-                </div>
+        <!-- Game Page -->
+        <div id="game-page" class="page">
+            <!-- Game Canvas Container -->
+            <div id="game-canvas-container">
+                <canvas id="game-canvas"></canvas>
+                <canvas id="ui-canvas"></canvas>
             </div>
             
-            <!-- Bottom Bar -->
-            <div id="bottom-bar">
-                <div id="inventory-panel">
-                    <button id="inventory-btn" class="ui-btn">Inventory</button>
-                    <button id="shop-btn" class="ui-btn">Shop</button>
-                    <button id="building-btn" class="ui-btn">Build</button>
-                    <button id="land-btn" class="ui-btn">Land</button>
-                </div>
-                <div id="chat-panel">
-                    <div id="chat-messages"></div>
-                    <input type="text" id="chat-input" placeholder="Type a message...">
-                </div>
-            </div>
-        </div>
-        
-        <!-- Modals -->
-        <div id="modals">
-            <!-- Stream Setup Modal -->
-            <div id="stream-setup-modal" class="modal">
-                <div class="modal-content">
-                    <h2>Stream Setup</h2>
-                    <p>Bạn có đang livestream không?</p>
-                    <div class="modal-buttons">
-                        <button id="no-stream-btn" class="btn btn-secondary">Không</button>
-                        <button id="yes-stream-btn" class="btn btn-primary">Có</button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- YouTube Link Modal -->
-            <div id="youtube-modal" class="modal">
-                <div class="modal-content">
-                    <h2>YouTube Stream Link</h2>
-                    <p>Nhập link YouTube stream của bạn:</p>
-                    <input type="text" id="youtube-link" placeholder="https://youtube.com/watch?v=...">
-                    <div class="modal-buttons">
-                        <button id="cancel-youtube-btn" class="btn btn-secondary">Cancel</button>
-                        <button id="confirm-youtube-btn" class="btn btn-primary">Confirm</button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Wallet Connect Modal -->
-            <div id="wallet-modal" class="modal">
-                <div class="modal-content">
-                    <h2>Connect Wallet</h2>
-                    <p>Choose your Solana wallet:</p>
-                    <div class="wallet-options">
-                        <button id="phantom-btn" class="wallet-btn">Phantom</button>
-                        <button id="solflare-btn" class="wallet-btn">Solflare</button>
-                        <button id="glow-btn" class="wallet-btn">Glow</button>
-                        <button id="metamask-btn" class="wallet-btn">MetaMask</button>
-                    </div>
-                </div>
+            <!-- Game UI -->
+            <div id="game-ui">
+                <!-- UI elements will be added here -->
             </div>
         </div>
     </div>
     
     <!-- Scripts -->
-        <script src="js/audio/AudioManager.js"></script>
-        <script src="js/game/InputHandler.js"></script>
-        <script src="js/game/Player.js"></script>
-        <script src="js/game/World.js"></script>
-        <script src="js/game/GameEngine.js"></script>
-        <script src="js/main.js"></script>
-        <script src="js/game/Inventory.js"></script>
-        <script src="js/game/Shop.js"></script>     
-    
+    <script src="js/audio/AudioManager.js"></script>
+    <script src="js/blockchain/WalletManager.js"></script>
+    <script src="js/blockchain/SmartContractManager.js"></script>
+    <script src="js/streaming/StreamManager.js"></script>
+    <script src="js/streaming/ViewerInterface.js"></script>
+    <script src="js/game/InputHandler.js"></script>
+    <script src="js/game/Player.js"></script>
+    <script src="js/game/World.js"></script>
+    <script src="js/game/GameEngine.js"></script>
+    <script src="js/game/Inventory.js"></script>
+    <script src="js/game/Shop.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>

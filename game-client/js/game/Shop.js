@@ -5,40 +5,41 @@ class Shop {
         this.selectedCategory = 'materials';
         this.cart = [];
         this.totalCost = 0;
+        this.smartContractManager = null;
         
         // Shop categories and items
         this.categories = {
             materials: {
                 name: 'Materials',
                 items: [
-                    { type: 'wood', name: 'Wood', price: 0.01, description: 'Basic building material', icon: 'assets/images/items/wood.png' },
-                    { type: 'stone', name: 'Stone', price: 0.02, description: 'Strong construction material', icon: 'assets/images/items/stone.png' },
-                    { type: 'seeds', name: 'Seeds', price: 0.005, description: 'Plant these to grow crops', icon: 'assets/images/items/seeds.png' },
-                    { type: 'tools', name: 'Tools', price: 0.05, description: 'Helps with construction', icon: 'assets/images/items/tools.png' }
+                    { type: 'wood', name: 'Wood', price: 0.01, description: 'Basic building material', icon: 'item-placeholder wood' },
+                    { type: 'stone', name: 'Stone', price: 0.02, description: 'Strong construction material', icon: 'item-placeholder stone' },
+                    { type: 'seeds', name: 'Seeds', price: 0.005, description: 'Plant these to grow crops', icon: 'item-placeholder seeds' },
+                    { type: 'tools', name: 'Tools', price: 0.05, description: 'Helps with construction', icon: 'item-placeholder tools' }
                 ]
             },
             buildings: {
                 name: 'Buildings',
                 items: [
-                    { type: 'house', name: 'House', price: 0.1, description: 'Basic dwelling for villagers', icon: 'assets/images/buildings/house-level-1.png' },
-                    { type: 'farm', name: 'Farm House', price: 0.08, description: 'Agricultural building for farming', icon: 'assets/images/buildings/farm-house-level-1.png' },
-                    { type: 'castle', name: 'Castle', price: 1.0, description: 'Fortified structure for defense', icon: 'assets/images/buildings/castle-level-1.png' }
+                    { type: 'house', name: 'House', price: 0.1, description: 'Basic dwelling for villagers', icon: 'item-placeholder materials' },
+                    { type: 'farm', name: 'Farm House', price: 0.08, description: 'Agricultural building for farming', icon: 'item-placeholder materials' },
+                    { type: 'castle', name: 'Castle', price: 1.0, description: 'Fortified structure for defense', icon: 'item-placeholder materials' }
                 ]
             },
             food: {
                 name: 'Food & Consumables',
                 items: [
-                    { type: 'food', name: 'Food', price: 0.02, description: 'Restores health and energy', icon: 'assets/images/items/food.png' },
-                    { type: 'potion', name: 'Health Potion', price: 0.05, description: 'Restores health instantly', icon: 'assets/images/items/potion.png' },
-                    { type: 'energy', name: 'Energy Drink', price: 0.03, description: 'Restores energy instantly', icon: 'assets/images/items/energy.png' }
+                    { type: 'food', name: 'Food', price: 0.02, description: 'Restores health and energy', icon: 'item-placeholder materials' },
+                    { type: 'potion', name: 'Health Potion', price: 0.05, description: 'Restores health instantly', icon: 'item-placeholder potion' },
+                    { type: 'energy', name: 'Energy Drink', price: 0.03, description: 'Restores energy instantly', icon: 'item-placeholder energy' }
                 ]
             },
             special: {
                 name: 'Special Items',
                 items: [
-                    { type: 'gems', name: 'Gems', price: 0.5, description: 'Valuable precious stones', icon: 'assets/images/items/gems.png' },
-                    { type: 'coins', name: 'Coins', price: 0.1, description: 'Currency for trading', icon: 'assets/images/items/coins.png' },
-                    { type: 'materials', name: 'Materials', price: 0.15, description: 'Various crafting materials', icon: 'assets/images/items/materials.png' }
+                    { type: 'gems', name: 'Gems', price: 0.5, description: 'Valuable precious stones', icon: 'item-placeholder gems' },
+                    { type: 'coins', name: 'Coins', price: 0.1, description: 'Currency for trading', icon: 'item-placeholder materials' },
+                    { type: 'materials', name: 'Materials', price: 0.15, description: 'Various crafting materials', icon: 'item-placeholder materials' }
                 ]
             }
         };
@@ -73,6 +74,15 @@ class Shop {
     
     // Show shop panel
     showShopPanel() {
+        // Create modal overlay
+        let modalOverlay = document.getElementById('modal-overlay');
+        if (!modalOverlay) {
+            modalOverlay = document.createElement('div');
+            modalOverlay.id = 'modal-overlay';
+            modalOverlay.className = 'modal-overlay';
+            document.body.appendChild(modalOverlay);
+        }
+        
         let shopPanel = document.getElementById('shop-panel');
         
         if (!shopPanel) {
@@ -125,7 +135,7 @@ class Shop {
                         <div class="items-grid">
                             ${this.categories[this.selectedCategory].items.map(item => `
                                 <div class="shop-item" data-type="${item.type}">
-                                    <img src="${item.icon}" alt="${item.name}" class="item-icon">
+                                    <div class="${item.icon}" title="${item.name}">${item.name.charAt(0).toUpperCase()}</div>
                                     <div class="item-info">
                                         <h5>${item.name}</h5>
                                         <p>${item.description}</p>
@@ -144,6 +154,15 @@ class Shop {
         
         shopPanel.innerHTML = shopHTML;
         
+        // Show modal overlay and panel
+        modalOverlay.style.display = 'block';
+        shopPanel.style.display = 'block';
+        
+        // Add animation class after a small delay
+        setTimeout(() => {
+            shopPanel.classList.add('show');
+        }, 10);
+        
         // Add event listeners
         this.addShopEventListeners();
     }
@@ -151,8 +170,20 @@ class Shop {
     // Hide shop panel
     hideShopPanel() {
         const shopPanel = document.getElementById('shop-panel');
+        const modalOverlay = document.getElementById('modal-overlay');
+        
         if (shopPanel) {
-            shopPanel.remove();
+            // Remove animation class first
+            shopPanel.classList.remove('show');
+            
+            // Hide after animation completes
+            setTimeout(() => {
+                shopPanel.style.display = 'none';
+            }, 300);
+        }
+        
+        if (modalOverlay) {
+            modalOverlay.style.display = 'none';
         }
     }
     
@@ -162,6 +193,14 @@ class Shop {
         document.getElementById('close-shop').addEventListener('click', () => {
             this.close();
         });
+        
+        // Modal overlay click to close
+        const modalOverlay = document.getElementById('modal-overlay');
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', () => {
+                this.close();
+            });
+        }
         
         // Category buttons
         document.querySelectorAll('.category-btn').forEach(btn => {
@@ -222,7 +261,7 @@ class Shop {
     }
     
     // Checkout process
-    checkout() {
+    async checkout() {
         if (this.cart.length === 0) {
             alert('Your cart is empty!');
             return;
@@ -235,21 +274,50 @@ class Shop {
         // For now, just show confirmation
         const confirmMessage = `Purchase ${this.cart.length} items for ${this.totalCost.toFixed(3)} SOL?`;
         if (confirm(confirmMessage)) {
-            this.processPurchase();
+            await this.processPurchase();
         }
     }
     
     // Process purchase
-    processPurchase() {
-        // TODO: Implement actual purchase logic with wallet
-        console.log('Processing purchase...');
+    async processPurchase() {
+        if (this.cart.length === 0) {
+            alert('Your cart is empty!');
+            return;
+        }
         
-        // Clear cart after successful purchase
-        this.cart = [];
-        this.totalCost = 0;
-        this.render();
-        
-        alert('Purchase successful! Items added to inventory.');
+        try {
+            console.log('Processing purchase...');
+            
+            // Lấy smart contract manager từ main game
+            const game = window.game;
+            if (!game || !game.smartContractManager) {
+                throw new Error('Smart contract manager not available');
+            }
+            
+            // Xử lý từng item trong cart
+            for (const item of this.cart) {
+                const result = await game.smartContractManager.buyShopItem(
+                    item.type, // itemId
+                    1, // quantity
+                    'seller_address_here' // TODO: Lấy địa chỉ seller thực
+                );
+                
+                if (result.success) {
+                    console.log(`Purchased ${item.name}:`, result);
+                }
+            }
+            
+            // Xóa cart sau khi mua thành công
+            this.cart = [];
+            this.totalCost = 0;
+            this.render();
+            
+            alert('Purchase successful! Items added to inventory.');
+            
+        } catch (error) {
+            console.error('Purchase failed:', error);
+            alert(`Purchase failed: ${error.message}`);
+        }
     }
     
     // Get shop items by category

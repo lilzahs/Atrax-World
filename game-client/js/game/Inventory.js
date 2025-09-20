@@ -76,17 +76,8 @@ class Inventory {
     
     // Get item icon path
     getItemIcon(itemType) {
-        const iconMap = {
-            wood: 'assets/images/items/wood.png',
-            stone: 'assets/images/items/stone.png',
-            seeds: 'assets/images/items/seeds.png',
-            food: 'assets/images/items/food.png',
-            tools: 'assets/images/items/tools.png',
-            materials: 'assets/images/items/materials.png',
-            coins: 'assets/images/items/coins.png',
-            gems: 'assets/images/items/gems.png'
-        };
-        return iconMap[itemType] || 'assets/images/items/default.png';
+        // Return placeholder class instead of image path
+        return `item-placeholder ${itemType}`;
     }
     
     // Get item display name
@@ -121,7 +112,12 @@ class Inventory {
     
     // Toggle inventory visibility
     toggle() {
+        console.log('=== INVENTORY TOGGLE CALLED ===');
+        console.log('Current isOpen state:', this.isOpen);
+        
         this.isOpen = !this.isOpen;
+        console.log('New isOpen state:', this.isOpen);
+        
         this.render();
     }
     
@@ -139,22 +135,46 @@ class Inventory {
     
     // Render inventory panel
     render() {
+        console.log('=== INVENTORY RENDER CALLED ===');
+        console.log('isOpen:', this.isOpen);
+        
         if (this.isOpen) {
+            console.log('Calling showInventoryPanel...');
             this.showInventoryPanel();
         } else {
+            console.log('Calling hideInventoryPanel...');
             this.hideInventoryPanel();
         }
     }
     
     // Show inventory panel
     showInventoryPanel() {
+        console.log('=== SHOWING INVENTORY PANEL ===');
+        
+        // Create modal overlay
+        let modalOverlay = document.getElementById('modal-overlay');
+        if (!modalOverlay) {
+            console.log('Creating modal overlay...');
+            modalOverlay = document.createElement('div');
+            modalOverlay.id = 'modal-overlay';
+            modalOverlay.className = 'modal-overlay';
+            document.body.appendChild(modalOverlay);
+            console.log('Modal overlay created');
+        } else {
+            console.log('Modal overlay already exists');
+        }
+        
         let inventoryPanel = document.getElementById('inventory-panel');
         
         if (!inventoryPanel) {
+            console.log('Creating inventory panel...');
             inventoryPanel = document.createElement('div');
             inventoryPanel.id = 'inventory-panel';
             inventoryPanel.className = 'inventory-panel';
             document.body.appendChild(inventoryPanel);
+            console.log('Inventory panel created');
+        } else {
+            console.log('Inventory panel already exists');
         }
         
         // Generate inventory HTML
@@ -175,7 +195,7 @@ class Inventory {
             inventoryHTML += `
                 <div class="${slotClass}" id="${slotId}" data-slot="${i}">
                     ${item ? `
-                        <img src="${item.icon}" alt="${item.name}" class="item-icon">
+                        <div class="${item.icon}" title="${item.name}">${item.name.charAt(0).toUpperCase()}</div>
                         <span class="item-quantity">${item.quantity}</span>
                         <div class="item-tooltip">
                             <strong>${item.name}</strong><br>
@@ -203,15 +223,41 @@ class Inventory {
         
         inventoryPanel.innerHTML = inventoryHTML;
         
+        // Show modal overlay and panel
+        console.log('Showing modal overlay and panel...');
+        modalOverlay.style.display = 'block';
+        inventoryPanel.style.display = 'block';
+        
+        // Add animation class after a small delay
+        setTimeout(() => {
+            inventoryPanel.classList.add('show');
+        }, 10);
+        
+        console.log('Modal overlay display:', modalOverlay.style.display);
+        console.log('Inventory panel display:', inventoryPanel.style.display);
+        
         // Add event listeners
         this.addInventoryEventListeners();
+        console.log('=== INVENTORY PANEL SHOWN ===');
     }
     
     // Hide inventory panel
     hideInventoryPanel() {
         const inventoryPanel = document.getElementById('inventory-panel');
+        const modalOverlay = document.getElementById('modal-overlay');
+        
         if (inventoryPanel) {
-            inventoryPanel.remove();
+            // Remove animation class first
+            inventoryPanel.classList.remove('show');
+            
+            // Hide after animation completes
+            setTimeout(() => {
+                inventoryPanel.style.display = 'none';
+            }, 300);
+        }
+        
+        if (modalOverlay) {
+            modalOverlay.style.display = 'none';
         }
     }
     
@@ -221,6 +267,14 @@ class Inventory {
         document.getElementById('close-inventory').addEventListener('click', () => {
             this.close();
         });
+        
+        // Modal overlay click to close
+        const modalOverlay = document.getElementById('modal-overlay');
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', () => {
+                this.close();
+            });
+        }
         
         // Use item button
         document.getElementById('use-item-btn').addEventListener('click', () => {

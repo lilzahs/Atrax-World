@@ -15,12 +15,10 @@ class AtraxWorldGame {
         this.audioManager = null;
         this.inventory = null;
         this.shop = null;
-        // UI elements
-        this.modals = {
-            streamSetup: document.getElementById('stream-setup-modal'),
-            youtube: document.getElementById('youtube-modal'),
-            wallet: document.getElementById('wallet-modal')
-        };
+        this.walletManager = null;
+        this.smartContractManager = null;
+        this.streamManager = null;
+        this.viewerInterface = null;
         
         this.init();
     }
@@ -28,311 +26,281 @@ class AtraxWorldGame {
     init() {
         console.log('Initializing Atrax World Game...');
         
-        // Initialize audio manager
-        this.audioManager = new AudioManager();
-        // Initialize inventory system
-        this.inventory = new Inventory(); 
-        // Initialize shop system
-        this.shop = new Shop();
-        // Set up event listeners
-        this.setupEventListeners();
-        
-        // Initialize game engine
-        this.initGameEngine();
-        
-        // Show wallet connect modal first
-        this.showWalletModal();
-    }
-    
-    setupEventListeners() {
-        // Wallet modal buttons
-        document.getElementById('phantom-btn').addEventListener('click', () => {
-            this.audioManager.playButtonClick();
-            this.connectWallet('phantom');
-        });
-        document.getElementById('solflare-btn').addEventListener('click', () => {
-            this.audioManager.playButtonClick();
-            this.connectWallet('solflare');
-        });
-        document.getElementById('glow-btn').addEventListener('click', () => {
-            this.audioManager.playButtonClick();
-            this.connectWallet('glow');
-        });
-        document.getElementById('metamask-btn').addEventListener('click', () => {
-            this.audioManager.playButtonClick();
-            this.connectWallet('metamask');
-        });
-        
-        // Stream setup modal buttons
-        document.getElementById('no-stream-btn').addEventListener('click', () => {
-            this.audioManager.playButtonClick();
-            this.startGame(false);
-        });
-        document.getElementById('yes-stream-btn').addEventListener('click', () => {
-            this.audioManager.playButtonClick();
-            this.showYouTubeModal();
-        });
-        
-        // YouTube modal buttons
-        document.getElementById('cancel-youtube-btn').addEventListener('click', () => {
-            this.audioManager.playButtonClick();
-            this.hideYouTubeModal();
-        });
-        document.getElementById('confirm-youtube-btn').addEventListener('click', () => {
-            this.audioManager.playButtonClick();
-            this.setupStream();
-        });
-        
-        // Chat input
-        document.getElementById('chat-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.audioManager.playButtonClick();
-                this.sendChatMessage();
-            }
-        });
-        
-        // UI buttons
-        document.getElementById('inventory-btn').addEventListener('click', () => {
-            this.audioManager.playButtonClick();
-            this.toggleInventory();
-        });
-        document.getElementById('shop-btn').addEventListener('click', () => {
-            this.audioManager.playButtonClick();
-            this.toggleShop();
-        });
-        document.getElementById('building-btn').addEventListener('click', () => {
-            this.audioManager.playButtonClick();
-            this.toggleBuildingMode();
-        });
-        document.getElementById('land-btn').addEventListener('click', () => {
-            this.audioManager.playButtonClick();
-            this.toggleLand();
-        });
-        
-        // Add hover effects for buttons
-        this.addButtonHoverEffects();
-    }
-    
-    addButtonHoverEffects() {
-        // Add hover sound effects to all buttons
-        const buttons = document.querySelectorAll('.ui-btn, .btn, .wallet-btn');
-        buttons.forEach(button => {
-            button.addEventListener('mouseenter', () => {
-                this.audioManager.playButtonHover();
-            });
-        });
+        try {
+            // Initialize audio manager
+            this.audioManager = new AudioManager();
+            console.log('AudioManager initialized');
+            
+            // Initialize inventory system
+            this.inventory = new Inventory();
+            console.log('Inventory initialized');
+            
+            // Initialize shop system
+            this.shop = new Shop();
+            console.log('Shop initialized');
+            
+            // Initialize wallet manager
+            this.walletManager = new WalletManager();
+            console.log('WalletManager initialized');
+            
+            // Initialize smart contract manager
+            this.smartContractManager = new SmartContractManager(this.walletManager);
+            console.log('SmartContractManager initialized');
+            
+            // Initialize stream manager
+            this.streamManager = new StreamManager(this.walletManager, this.smartContractManager);
+            console.log('StreamManager initialized');
+            
+            // Initialize viewer interface
+            this.viewerInterface = new ViewerInterface(this.walletManager, this.smartContractManager);
+            console.log('ViewerInterface initialized');
+            
+            // Set up event listeners
+            this.setupEventListeners();
+            console.log('Event listeners set up');
+            
+            // Don't initialize game engine yet - wait for user to start game
+            console.log('Home page ready');
+            
+            console.log('Game initialization completed successfully!');
+            
+        } catch (error) {
+            console.error('Game initialization failed:', error);
+            alert('Game initialization failed: ' + error.message);
+        }
     }
     
     initGameEngine() {
-        // Initialize the game engine
-        this.gameEngine = new GameEngine(this.canvas, this.uiCanvas);
+        // Set canvas size
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
         
-        // Set up game loop
+        // Initialize game engine
+        this.gameEngine = new GameEngine(this.canvas, this.uiCanvas);
+        console.log('GameEngine created');
+        
+        // Initialize world
+        this.world = new World();
+        console.log('World created');
+        
+        // Initialize player
+        this.player = new Player(100, 100);
+        console.log('Player created');
+        
+        // Start game loop
         this.gameLoop();
     }
     
-    async connectWallet(walletType) {
-        console.log(`Connecting to ${walletType} wallet...`);
+    resizeCanvas() {
+        const container = document.getElementById('game-container');
+        const rect = container.getBoundingClientRect();
         
-        try {
-            // TODO: Implement actual wallet connection
-            // For now, simulate successful connection
-            await this.simulateWalletConnection(walletType);
-            
-            this.hideWalletModal();
-            this.showStreamSetupModal();
-            
-        } catch (error) {
-            console.error('Wallet connection failed:', error);
-            alert('Failed to connect wallet. Please try again.');
-        }
-    }
-    
-    async simulateWalletConnection(walletType) {
-        // Simulate wallet connection delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height;
+        this.uiCanvas.width = rect.width;
+        this.uiCanvas.height = rect.height;
         
-        // Simulate getting wallet address and balance
-        this.walletAddress = 'Atrax' + Math.random().toString(36).substr(2, 9);
-        this.solBalance = Math.random() * 10;
-        
-        // Update UI
-        document.getElementById('player-name').textContent = this.walletAddress;
-        document.getElementById('sol-balance').textContent = this.solBalance.toFixed(4) + ' SOL';
-        
-        this.isConnected = true;
-    }
-    
-    showWalletModal() {
-        this.modals.wallet.style.display = 'block';
-    }
-    
-    hideWalletModal() {
-        this.modals.wallet.style.display = 'none';
-    }
-    
-    showStreamSetupModal() {
-        this.modals.streamSetup.style.display = 'block';
-    }
-    
-    hideStreamSetupModal() {
-        this.modals.streamSetup.style.display = 'none';
-    }
-    
-    showYouTubeModal() {
-        this.hideStreamSetupModal();
-        this.modals.youtube.style.display = 'block';
-    }
-    
-    hideYouTubeModal() {
-        this.modals.youtube.style.display = 'none';
-    }
-    
-    setupStream() {
-        const youtubeLink = document.getElementById('youtube-link').value;
-        
-        if (!this.validateYouTubeLink(youtubeLink)) {
-            alert('Please enter a valid YouTube link');
-            return;
-        }
-        
-        // TODO: Implement YouTube stream setup
-        console.log('Setting up stream with link:', youtubeLink);
-        
-        this.hideYouTubeModal();
-        this.startGame(true, youtubeLink);
-    }
-    
-    validateYouTubeLink(link) {
-        const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[\w-]+/;
-        return youtubeRegex.test(link);
-    }
-    
-    startGame(isStreaming = false, youtubeLink = null) {
-        console.log('Starting game...', { isStreaming, youtubeLink });
-        
-        this.hideStreamSetupModal();
-        this.hideYouTubeModal();
-        
-        // Initialize game world
-        this.initGameWorld();
-        
-        // Start game engine
-        this.gameEngine.start();
-        
-        // Play background music for current biome
-        this.audioManager.playBiomeMusic('plains'); // Default to plains for now
-        
-        this.gameState = 'playing';
-        
-        // If streaming, set up stream integration
-        if (isStreaming && youtubeLink) {
-            this.setupStreamIntegration(youtubeLink);
-        }
-    }
-    
-    initGameWorld() {
-        // TODO: Initialize game world with biomes
-        this.world = new World();
-        this.player = new Player(400, 300); // Start position
-        
-        // Update world info in UI
-        document.getElementById('world-name').textContent = 'World 1';
-        document.getElementById('village-name').textContent = 'Plains Village';
-    }
-    
-    setupStreamIntegration(youtubeLink) {
-        // TODO: Implement stream integration
-        console.log('Setting up stream integration with:', youtubeLink);
+        console.log(`Canvas resized to: ${rect.width}x${rect.height}`);
     }
     
     gameLoop() {
-        if (this.gameState === 'playing' && this.gameEngine) {
-            this.gameEngine.update();
-            this.gameEngine.render();
-        }
-        
+        this.update();
+        this.render();
         requestAnimationFrame(() => this.gameLoop());
     }
     
-    sendChatMessage() {
-        const input = document.getElementById('chat-input');
-        const message = input.value.trim();
-        
-        if (message) {
-            // TODO: Send message to server
-            this.addChatMessage(this.walletAddress, message);
-            input.value = '';
+    update() {
+        if (this.gameEngine) {
+            this.gameEngine.update();
         }
     }
     
-    addChatMessage(sender, message) {
-        const chatMessages = document.getElementById('chat-messages');
-        const messageElement = document.createElement('div');
-        messageElement.innerHTML = `<strong>${sender}:</strong> ${message}`;
-        chatMessages.appendChild(messageElement);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-    
-    toggleInventory() {
-        console.log('Toggle inventory');
-        this.audioManager.playButtonClick();
-        this.inventory.toggle();
-        // TODO: Implement inventory panel
-    }
-    
-    toggleShop() {
-        console.log('Toggle shop');
-        this.audioManager.playButtonClick();
-        this.shop.toggle();        // TODO: Implement shop panel
-    }
-    
-    toggleBuilding() {
-        console.log('Toggle building mode');
-        // TODO: Implement building mode
-    }
-    
-    toggleLand() {
-        console.log('Toggle land management');
-        // TODO: Implement land management
-    }
-
-    toggleBuildingMode() {
-        this.isBuildingMode = !this.isBuildingMode;
-        if (this.isBuildingMode) {
-            this.showBuildingMenu();
-        } else {
-            this.hideBuildingMenu();
+    render() {
+        if (this.gameEngine) {
+            this.gameEngine.render();
         }
     }
-
-    showBuildingMenu() {
-        // Tạo building selection UI
-        const buildingMenu = document.createElement('div');
-        buildingMenu.id = 'building-menu';
-        buildingMenu.innerHTML = `
-            <div class="building-options">
-                <button class="building-option" data-type="house">House</button>
-                <button class="building-option" data-type="farm">Farm</button>
-                <button class="building-option" data-type="castle">Castle</button>
-            </div>
-        `;
-        document.body.appendChild(buildingMenu);
+    
+    setupEventListeners() {
+        console.log('Setting up home page event listeners...');
         
-        // Add event listeners
-        buildingMenu.querySelectorAll('.building-option').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                this.selectedBuildingType = e.target.dataset.type;
-                this.audioManager.playButtonClick();
+        // Connect Wallet Button
+        const connectWalletBtn = document.getElementById('connect-wallet-btn');
+        if (connectWalletBtn) {
+            connectWalletBtn.addEventListener('click', () => {
+                this.connectWallet();
             });
-        });
-    }
-
-    hideBuildingMenu() {
-        const menu = document.getElementById('building-menu');
-        if (menu) {
-            menu.remove();
         }
+        
+        // Player Name Input
+        const playerNameInput = document.getElementById('player-name-input');
+        if (playerNameInput) {
+            playerNameInput.addEventListener('input', (e) => {
+                this.onPlayerNameChange(e.target.value);
+            });
+            
+            playerNameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.onPlayerNameSubmit();
+                }
+            });
+        }
+        
+        // Play Button
+        const playBtn = document.getElementById('play-btn');
+        if (playBtn) {
+            playBtn.addEventListener('click', () => {
+                this.startGame();
+            });
+        }
+        
+        // Watch Button
+        const watchBtn = document.getElementById('watch-btn');
+        if (watchBtn) {
+            watchBtn.addEventListener('click', () => {
+                this.openViewerApp();
+            });
+        }
+    }
+    
+    // Connect Wallet
+    connectWallet() {
+        console.log('Connecting wallet...');
+        
+        // Simulate wallet connection for now
+        setTimeout(() => {
+            this.onWalletConnected('Fzbs8K9mN2pQ7rT5wX3yJ6hG4vB1nM8kL2pQ7rT5wX3yJmb');
+        }, 1000);
+    }
+    
+    // Wallet Connected
+    onWalletConnected(address) {
+        console.log('Wallet connected:', address);
+        
+        // Hide connect wallet section
+        const connectSection = document.getElementById('connect-wallet-section');
+        if (connectSection) {
+            connectSection.classList.add('hidden');
+        }
+        
+        // Show wallet address
+        const walletSection = document.getElementById('wallet-address-section');
+        const walletText = document.getElementById('wallet-address-text');
+        if (walletSection && walletText) {
+            walletText.textContent = this.formatWalletAddress(address);
+            walletSection.classList.remove('hidden');
+        }
+        
+        // Show player name input
+        const nameSection = document.getElementById('player-name-section');
+        if (nameSection) {
+            nameSection.classList.remove('hidden');
+        }
+        
+        // Show action buttons (gray)
+        const actionButtons = document.getElementById('action-buttons');
+        if (actionButtons) {
+            actionButtons.classList.remove('hidden');
+        }
+    }
+    
+    // Format wallet address
+    formatWalletAddress(address) {
+        if (address.length <= 8) return address;
+        return address.substring(0, 4) + '...' + address.substring(address.length - 3);
+    }
+    
+    // Player name change
+    onPlayerNameChange(name) {
+        const playBtn = document.getElementById('play-btn');
+        const watchBtn = document.getElementById('watch-btn');
+        
+        if (name.trim().length > 0) {
+            // Change to red buttons
+            if (playBtn) {
+                const img = playBtn.querySelector('.btn-image');
+                if (img) {
+                    img.src = 'assets/images/ui/buttons/play-red.png';
+                }
+            }
+            if (watchBtn) {
+                const img = watchBtn.querySelector('.btn-image');
+                if (img) {
+                    img.src = 'assets/images/ui/buttons/watch-stream-red.png';
+                }
+            }
+        } else {
+            // Change to gray buttons
+            if (playBtn) {
+                const img = playBtn.querySelector('.btn-image');
+                if (img) {
+                    img.src = 'assets/images/ui/buttons/play-gray.png';
+                }
+            }
+            if (watchBtn) {
+                const img = watchBtn.querySelector('.btn-image');
+                if (img) {
+                    img.src = 'assets/images/ui/buttons/watch-stream-gray.png';
+                }
+            }
+        }
+    }
+    
+    // Player name submit
+    onPlayerNameSubmit() {
+        const nameInput = document.getElementById('player-name-input');
+        if (nameInput && nameInput.value.trim().length > 0) {
+            this.playerName = nameInput.value.trim();
+            console.log('Player name set:', this.playerName);
+        }
+    }
+    
+    // Start Game
+    startGame() {
+        const nameInput = document.getElementById('player-name-input');
+        if (!nameInput || nameInput.value.trim().length === 0) {
+            alert('Please enter your player name first!');
+            return;
+        }
+        
+        this.playerName = nameInput.value.trim();
+        console.log('Starting game with player name:', this.playerName);
+        
+        // Switch to game page
+        this.switchToGamePage();
+    }
+    
+    // Open Viewer App
+    openViewerApp() {
+        console.log('Opening viewer app...');
+        // For now, just show alert
+        alert('Viewer app will open in a new tab');
+        // window.open('viewer-app/index.html', '_blank');
+    }
+    
+    // Switch to Game Page
+    switchToGamePage() {
+        const homePage = document.getElementById('home-page');
+        const gamePage = document.getElementById('game-page');
+        
+        if (homePage && gamePage) {
+            homePage.classList.remove('active');
+            gamePage.classList.add('active');
+            
+            // Initialize game engine
+            this.initGameEngine();
+        }
+    }
+    
+    startGame(skipWallet = false) {
+        console.log('Starting game...');
+        this.gameState = 'playing';
+        this.hideAllModals();
+    }
+    
+    hideAllModals() {
+        // Hide all modals
+        console.log('Hiding all modals...');
     }
 }
 
