@@ -1,7 +1,8 @@
 // Client-only helpers for Anchor + Solana
 export type WalletType = 'phantom' | 'solflare';
 
-export let PROGRAM_ID_STR = '';
+export const DEFAULT_PROGRAM_ID_STR = '35eYtQ3hgAqmDUtwcEQ6WFKfQri7figJGe9vR25mmMiC';
+export let PROGRAM_ID_STR = (process.env.NEXT_PUBLIC_ATRAX_PROGRAM_ID || DEFAULT_PROGRAM_ID_STR).trim();
 export function setProgramIdStr(s: string) { PROGRAM_ID_STR = (s || '').trim(); }
 
 async function loadIdl(): Promise<any> {
@@ -16,8 +17,12 @@ export async function getProgram(walletType: WalletType = 'phantom') {
   const anchor = await import('@coral-xyz/anchor');
   const web3 = await import('@solana/web3.js');
 
-  if (!PROGRAM_ID_STR) throw new Error('Program ID not set');
-  const programId = new web3.PublicKey(PROGRAM_ID_STR);
+  // Use built-in/env Program ID by default; if missing, fallback to IDL.address
+  let pidStr = PROGRAM_ID_STR;
+  const idlAddr = (idl as any)?.address || (idl as any)?.metadata?.address;
+  if (!pidStr && idlAddr) pidStr = String(idlAddr);
+  if (!pidStr) throw new Error('Program ID not set');
+  const programId = new web3.PublicKey(pidStr);
 
   const anyWindow = window as any;
   let adapter: any = null;

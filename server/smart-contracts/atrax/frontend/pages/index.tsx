@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { DEFAULT_PROGRAM_ID_STR } from '../src/lib/anchorClient';
 
 type WalletType = 'phantom' | 'solflare';
 
@@ -15,7 +16,9 @@ export default function Home() {
   useEffect(() => {
     if (!isBrowser()) return;
     const saved = localStorage.getItem('atrax_program_id') || '';
-    if (saved) setProgramId(saved);
+    const envPid = process.env.NEXT_PUBLIC_ATRAX_PROGRAM_ID || '';
+    const initial = saved || envPid || DEFAULT_PROGRAM_ID_STR;
+    if (initial) setProgramId(initial);
   }, []);
 
   const ensureProgram = useCallback(async () => {
@@ -156,4 +159,3 @@ export default function Home() {
     </main>
   );
 }
-
