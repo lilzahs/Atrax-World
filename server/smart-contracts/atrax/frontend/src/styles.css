@@ -1,0 +1,17 @@
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji; }
+
+.container { max-width: 980px; margin: 0 auto; padding: 24px; }
+.row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.card { border: 1px solid #3334; border-radius: 10px; padding: 16px; margin: 10px 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.muted { opacity: 0.8; font-size: 0.9em; }
+.btn { padding: 8px 12px; border: 1px solid #6666; border-radius: 8px; cursor: pointer; background: #2b6cb0; color: white; }
+.btn.alt { background: #4a5568; }
+input, select { padding: 8px; border-radius: 8px; border: 1px solid #6666; width: 100%; }
+label { display: block; font-weight: 600; margin-bottom: 6px; }
+.section-title { margin: 24px 0 8px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; }
+.status { margin-top: 6px; font-size: 0.9em; }
+
