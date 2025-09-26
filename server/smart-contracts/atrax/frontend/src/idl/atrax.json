@@ -316,6 +316,53 @@
       ]
     },
     {
+      "name": "update_admin",
+      "discriminator": [
+        161,
+        176,
+        40,
+        213,
+        60,
+        184,
+        179,
+        228
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_admin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "update_config",
       "discriminator": [
         29,
@@ -396,6 +443,19 @@
     }
   ],
   "events": [
+    {
+      "name": "AdminUpdated",
+      "discriminator": [
+        69,
+        82,
+        49,
+        171,
+        43,
+        3,
+        80,
+        161
+      ]
+    },
     {
       "name": "ConfigInitialized",
       "discriminator": [
@@ -513,6 +573,18 @@
     }
   ],
   "types": [
+    {
+      "name": "AdminUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "new_admin",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
     {
       "name": "Config",
       "type": {

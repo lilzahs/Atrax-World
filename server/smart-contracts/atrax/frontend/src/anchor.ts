@@ -15,9 +15,13 @@ export function getProvider(wallet: any): AnchorProvider {
 }
 
 export function getProgram(provider: AnchorProvider): Program<Idl> {
-  // Use the 2-arg overload (idl + provider) to avoid constructor signature mismatches
-  // across @coral-xyz/anchor minor versions. Program ID comes from idl.address.
   return new Program(idl as Idl, provider as any);
+}
+
+export async function loadProgram(provider: AnchorProvider): Promise<Program<Idl>> {
+  const chainIdl = await Program.fetchIdl(PROGRAM_ID, provider);
+  if (!chainIdl) throw new Error('IDL not found on-chain. Run anchor build && anchor deploy.');
+  return new Program(chainIdl as Idl, provider as any);
 }
 
 export function findConfigPda(): [PublicKey, number] {

@@ -4,15 +4,38 @@ import { useWallet as useWalletBase, useAnchorWallet } from '@solana/wallet-adap
 import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { AnchorProvider, BN } from '@coral-xyz/anchor';
 import { Buffer } from 'buffer';
-import { getProgram, getProvider, findConfigPda, findLandPda, SystemProgram, PROGRAM_ID } from './anchor';
+import { getProgram, loadProgram, getProvider, findConfigPda, findLandPda, SystemProgram, PROGRAM_ID } from './anchor';
 
 type Status = { kind: 'idle' | 'working' | 'ok' | 'err'; msg?: string };
+
+function safePublicKey(input: string): PublicKey | null {
+  try {
+    const s = (input || '').trim();
+    if (!s) return null;
+    return new PublicKey(s);
+  } catch { return null; }
+}
 
 function useAnchor() {
   const wallet = useWalletBase();
   const anchorWallet = useAnchorWallet();
   const provider = useMemo<AnchorProvider | null>(() => (anchorWallet ? getProvider(anchorWallet) : null), [anchorWallet]);
-  const program = useMemo(() => (provider ? getProgram(provider) : null), [provider]);
+  const [program, setProgram] = useState<ReturnType<typeof getProgram> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!provider) { setProgram(null); return; }
+      try {
+        // Prefer on-chain IDL to avoid local desync
+        const p = await loadProgram(provider);
+        if (!cancelled) setProgram(p);
+      } catch (e) {
+        // Fallback to bundled IDL
+        if (!cancelled) setProgram(getProgram(provider));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [provider]);
   return { wallet, provider, program } as const;
 }
 
@@ -21,6 +44,7 @@ export default function App() {
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [configPda] = findConfigPda();
   const [config, setConfig] = useState<null | { admin: string; devWallet: string; feeBps: number }>(null);
+  const isAdmin = useMemo(() => !!(config && wallet.publicKey && wallet.publicKey.toBase58() === config.admin), [config, wallet.publicKey]);
 
   const refreshConfig = useCallback(async () => {
     if (!program) return;
@@ -48,17 +72,16 @@ export default function App() {
   const [updDevWallet, setUpdDevWallet] = useState('');
   const [updFeeBps, setUpdFeeBps] = useState(500);
 
+  const [updAdmin, setUpdAdmin] = useState('');
+
   const [donStreamer, setDonStreamer] = useState('');
-  const [donDevWallet, setDonDevWallet] = useState('');
   const [donAmountSol, setDonAmountSol] = useState(0.1);
 
   const [buyItemId, setBuyItemId] = useState(1);
-  const [buyDevWallet, setBuyDevWallet] = useState('');
   const [buyAmountSol, setBuyAmountSol] = useState(0.1);
 
   const [tradeItemId, setTradeItemId] = useState(1);
   const [tradeSeller, setTradeSeller] = useState('');
-  const [tradeDevWallet, setTradeDevWallet] = useState('');
   const [tradeAmountSol, setTradeAmountSol] = useState(0.1);
 
   const [landId, setLandId] = useState(1);
@@ -83,11 +106,11 @@ export default function App() {
     if (!program || !wallet.publicKey) return;
     const dev = new PublicKey(initDevWallet);
     const fee = Number(initFeeBps) | 0;
-    const [config] = findConfigPda();
+    const [configPda] = findConfigPda();
     await withStatus(async () => {
       await program.methods
         .initialize(dev, fee)
-        .accounts({ config, admin: wallet.publicKey, systemProgram: SystemProgram.programId })
+        .accounts({ config: configPda, admin: wallet.publicKey, systemProgram: SystemProgram.programId })
         .rpc();
       await refreshConfig();
     }, 'Initialized config');
@@ -97,58 +120,81 @@ export default function App() {
     if (!program || !wallet.publicKey) return;
     const dev = new PublicKey(updDevWallet);
     const fee = Number(updFeeBps) | 0;
-    const [config] = findConfigPda();
+    const [configPda] = findConfigPda();
     await withStatus(async () => {
       await program.methods
         .updateConfig(dev, fee)
-        .accounts({ config, admin: wallet.publicKey })
+        .accounts({ config: configPda, admin: wallet.publicKey })
         .rpc();
       await refreshConfig();
     }, 'Updated config');
   }, [program, wallet.publicKey, updDevWallet, updFeeBps, refreshConfig]);
 
+  const onUpdateAdmin = useCallback(async () => {
+    if (!program || !wallet.publicKey) return;
+    const newAdmin = safePublicKey(updAdmin);
+    if (!newAdmin) { setStatus({ kind: 'err', msg: 'Pubkey admin mới không hợp lệ' }); return; }
+    const [configPda] = findConfigPda();
+    await withStatus(async () => {
+      const methods = (program as any).methods || {};
+      const m = methods.update_admin || methods.updateAdmin;
+      if (!m) {
+        const available = Object.keys(methods);
+        throw new Error('IDL không có method update_admin/updateAdmin. Hãy chạy anchor build && deploy, rồi copy IDL mới sang FE. Methods: ' + available.join(', '));
+      }
+      console.log('update_admin call', { configPda: configPda.toBase58(), newAdmin: newAdmin.toBase58() });
+      const ix = await m(newAdmin).accounts({ config: configPda, admin: wallet.publicKey }).instruction();
+      const tx = new (await import('@solana/web3.js')).Transaction().add(ix);
+      await (program.provider as any).sendAndConfirm(tx);
+      await refreshConfig();
+    }, 'Admin updated');
+  }, [program, wallet.publicKey, updAdmin, refreshConfig]);
+
   const onDonate = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
+    if (!config) { setStatus({ kind: 'err', msg: 'No config found. Initialize first.' }); return; }
     const amount = new BN(Math.floor(Number(donAmountSol) * LAMPORTS_PER_SOL));
-    const streamer = new PublicKey(donStreamer);
-    const devWallet = new PublicKey(donDevWallet);
-    const [config] = findConfigPda();
+    const streamer = new PublicKey(donStreamer.trim());
+    const devWallet = new PublicKey(config.devWallet);
+    const [configPda] = findConfigPda();
     await withStatus(async () => {
       await program.methods
         .donate(amount)
-        .accounts({ donor: wallet.publicKey, streamer, devWallet, config, systemProgram: SystemProgram.programId })
+        .accounts({ donor: wallet.publicKey, streamer, devWallet, config: configPda, systemProgram: SystemProgram.programId })
         .rpc();
     }, 'Donation sent');
-  }, [program, wallet.publicKey, donAmountSol, donStreamer, donDevWallet]);
+  }, [program, wallet.publicKey, donAmountSol, donStreamer, config]);
 
   const onBuy = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
+    if (!config) { setStatus({ kind: 'err', msg: 'No config found. Initialize first.' }); return; }
     const itemId = Number(buyItemId) | 0;
     const amount = new BN(Math.floor(Number(buyAmountSol) * LAMPORTS_PER_SOL));
-    const devWallet = new PublicKey(buyDevWallet);
-    const [config] = findConfigPda();
+    const devWallet = new PublicKey(config.devWallet);
+    const [configPda] = findConfigPda();
     await withStatus(async () => {
       await program.methods
         .buyItem(itemId, amount)
-        .accounts({ payer: wallet.publicKey, devWallet, config, systemProgram: SystemProgram.programId })
+        .accounts({ payer: wallet.publicKey, devWallet, config: configPda, systemProgram: SystemProgram.programId })
         .rpc();
     }, 'Item purchased');
-  }, [program, wallet.publicKey, buyItemId, buyAmountSol, buyDevWallet]);
+  }, [program, wallet.publicKey, buyItemId, buyAmountSol, config]);
 
   const onTrade = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
+    if (!config) { setStatus({ kind: 'err', msg: 'No config found. Initialize first.' }); return; }
     const itemId = Number(tradeItemId) | 0;
     const amount = new BN(Math.floor(Number(tradeAmountSol) * LAMPORTS_PER_SOL));
-    const seller = new PublicKey(tradeSeller);
-    const devWallet = new PublicKey(tradeDevWallet);
-    const [config] = findConfigPda();
+    const seller = new PublicKey(tradeSeller.trim());
+    const devWallet = new PublicKey(config.devWallet);
+    const [configPda] = findConfigPda();
     await withStatus(async () => {
       await program.methods
         .tradeItem(itemId, amount)
-        .accounts({ buyer: wallet.publicKey, seller, devWallet, config, systemProgram: SystemProgram.programId })
+        .accounts({ buyer: wallet.publicKey, seller, devWallet, config: configPda, systemProgram: SystemProgram.programId })
         .rpc();
     }, 'Trade executed');
-  }, [program, wallet.publicKey, tradeItemId, tradeAmountSol, tradeSeller, tradeDevWallet]);
+  }, [program, wallet.publicKey, tradeItemId, tradeAmountSol, tradeSeller, config]);
 
   const onInitLand = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
@@ -203,7 +249,9 @@ export default function App() {
             <strong>Config</strong>
             {config ? (
               <div className="muted">
-                Admin: <span className="mono">{config.admin}</span> · Dev Wallet: <span className="mono">{config.devWallet}</span> · Fee: {config.feeBps} bps
+                Admin: <span style={{ backgroundColor: '#3c4244ff', padding: '2px', lineHeight: '2', borderRadius: '10px' }} className="mono">{config.admin}</span> <br />
+                Dev Wallet: <span style={{ backgroundColor: '#3c4244ff', padding: '2px', lineHeight: '2', borderRadius: '10px' }} className="mono">{config.devWallet}</span> <br />
+                Fee: <span style={{ backgroundColor: '#3c4244ff', padding: '2px', lineHeight: '2', borderRadius: '10px' }} className="mono">{config.feeBps} bps</span>
               </div>
             ) : (
               <div className="muted">No config found (initialize first)</div>
@@ -214,78 +262,96 @@ export default function App() {
       </div>
 
       <div className="grid">
-        <div className="card">
-          <h3 className="section-title">Initialize</h3>
-          <label>Dev Wallet</label>
-          <input value={initDevWallet} onChange={(e) => setInitDevWallet(e.target.value)} placeholder="Dev wallet pubkey" />
-          <label>Fee (bps)</label>
-          <input type="number" value={initFeeBps} onChange={(e) => setInitFeeBps(Number(e.target.value))} />
-          <button className="btn" disabled={!wallet.publicKey} onClick={onInitialize}>Initialize</button>
-        </div>
-
-        <div className="card">
-          <h3 className="section-title">Update Config</h3>
-          <label>New Dev Wallet</label>
-          <input value={updDevWallet} onChange={(e) => setUpdDevWallet(e.target.value)} placeholder="Dev wallet pubkey" />
-          <label>New Fee (bps)</label>
-          <input type="number" value={updFeeBps} onChange={(e) => setUpdFeeBps(Number(e.target.value))} />
-          <button className="btn" disabled={!wallet.publicKey} onClick={onUpdateConfig}>Update</button>
-        </div>
-
-        <div className="card">
-          <h3 className="section-title">Donate</h3>
-          <label>Streamer</label>
-          <input value={donStreamer} onChange={(e) => setDonStreamer(e.target.value)} placeholder="Streamer pubkey" />
-          <label>Dev Wallet (must match config)</label>
-          <input value={donDevWallet} onChange={(e) => setDonDevWallet(e.target.value)} placeholder="Dev wallet pubkey" />
-          <label>Amount (SOL)</label>
-          <input type="number" value={donAmountSol} onChange={(e) => setDonAmountSol(Number(e.target.value))} />
-          <button className="btn" disabled={!wallet.publicKey} onClick={onDonate}>Donate</button>
-        </div>
-
-        <div className="card">
-          <h3 className="section-title">Buy Item</h3>
-          <label>Item ID</label>
-          <input type="number" value={buyItemId} onChange={(e) => setBuyItemId(Number(e.target.value))} />
-          <label>Dev Wallet (must match config)</label>
-          <input value={buyDevWallet} onChange={(e) => setBuyDevWallet(e.target.value)} placeholder="Dev wallet pubkey" />
-          <label>Amount (SOL)</label>
-          <input type="number" value={buyAmountSol} onChange={(e) => setBuyAmountSol(Number(e.target.value))} />
-          <button className="btn" disabled={!wallet.publicKey} onClick={onBuy}>Buy</button>
-        </div>
-
-        <div className="card">
-          <h3 className="section-title">Trade Item</h3>
-          <label>Item ID</label>
-          <input type="number" value={tradeItemId} onChange={(e) => setTradeItemId(Number(e.target.value))} />
-          <label>Seller</label>
-          <input value={tradeSeller} onChange={(e) => setTradeSeller(e.target.value)} placeholder="Seller pubkey" />
-          <label>Dev Wallet (must match config)</label>
-          <input value={tradeDevWallet} onChange={(e) => setTradeDevWallet(e.target.value)} placeholder="Dev wallet pubkey" />
-          <label>Amount (SOL)</label>
-          <input type="number" value={tradeAmountSol} onChange={(e) => setTradeAmountSol(Number(e.target.value))} />
-          <button className="btn" disabled={!wallet.publicKey} onClick={onTrade}>Trade</button>
-        </div>
-
-        <div className="card">
-          <h3 className="section-title">Land</h3>
-          <label>Land ID</label>
-          <input type="number" value={landId} onChange={(e) => setLandId(Number(e.target.value))} />
-          <div className="row">
-            <button className="btn" disabled={!wallet.publicKey} onClick={onInitLand}>Initialize Land</button>
+        {!config && (
+          <div className="card">
+            <h3 className="section-title">Initialize</h3>
+            <div className="muted">Quyền: bất kỳ ví nào (ví ký sẽ trở thành admin). Nên chạy 1 lần.</div>
+            <label>Dev Wallet</label>
+            <input value={initDevWallet} onChange={(e) => setInitDevWallet(e.target.value)} placeholder="Dev wallet pubkey" />
+            <label>Fee (bps)</label>
+            <input type="number" value={initFeeBps} onChange={(e) => setInitFeeBps(Number(e.target.value))} />
+            <button className="btn" disabled={!wallet.publicKey} onClick={onInitialize}>Initialize</button>
           </div>
-          <label>New Owner</label>
-          <input value={newOwner} onChange={(e) => setNewOwner(e.target.value)} placeholder="New owner pubkey" />
-          <button className="btn" disabled={!wallet.publicKey} onClick={onTransferLand}>Transfer Land</button>
-          <div className="muted">Note: Current PDA uses seed ["land", owner], so after transfer it won’t match the new owner for subsequent ops.</div>
-        </div>
+        )}
 
-        <div className="card">
-          <h3 className="section-title">Claim Profit (placeholder)</h3>
-          <label>Amount (SOL)</label>
-          <input type="number" value={claimAmountSol} onChange={(e) => setClaimAmountSol(Number(e.target.value))} />
-          <button className="btn" disabled={!wallet.publicKey} onClick={onClaim}>Claim</button>
-        </div>
+        {config && (
+          <>
+            <div className={`card ${!isAdmin ? 'disabled' : ''}`}>
+              <h3 className="section-title">Update Config</h3>
+              <div className="muted">Quyền: admin hiện tại (phải ký giao dịch).</div>
+              <label>New Dev Wallet</label>
+              <input value={updDevWallet} onChange={(e) => setUpdDevWallet(e.target.value)} placeholder="Dev wallet pubkey" disabled={!isAdmin} />
+              <label>New Fee (bps)</label>
+              <input type="number" value={updFeeBps} onChange={(e) => setUpdFeeBps(Number(e.target.value))} disabled={!isAdmin} />
+              <button className="btn" disabled={!wallet.publicKey || !isAdmin} onClick={onUpdateConfig}>Update</button>
+              {!isAdmin && <div className="muted">Chỉ admin mới có thể cập nhật cấu hình.</div>}
+            </div>
+
+            <div className={`card ${!isAdmin ? 'disabled' : ''}`}>
+              <h3 className="section-title">Update Admin</h3>
+              <div className="muted">Quyền: admin hiện tại (ký) để đổi sang admin mới.</div>
+              <label>New Admin</label>
+              <input value={updAdmin} onChange={(e) => setUpdAdmin(e.target.value)} placeholder="New admin pubkey" disabled={!isAdmin} />
+              <button className="btn" disabled={!wallet.publicKey || !isAdmin} onClick={onUpdateAdmin}>Update Admin</button>
+              {!isAdmin && <div className="muted">Chỉ admin mới có thể đổi admin.</div>}
+            </div>
+
+            <div className="card">
+              <h3 className="section-title">Donate</h3>
+              <div className="muted">Quyền: bất kỳ ví nào (donor ký). Phí bị trừ theo fee_bps và gửi về dev wallet.</div>
+              <label>Streamer</label>
+              <input value={donStreamer} onChange={(e) => setDonStreamer(e.target.value)} placeholder="Streamer pubkey" />
+              <label>Amount (SOL)</label>
+              <input type="number" value={donAmountSol} onChange={(e) => setDonAmountSol(Number(e.target.value))} />
+              <button className="btn" disabled={!wallet.publicKey} onClick={onDonate}>Donate</button>
+            </div>
+
+            <div className="card">
+              <h3 className="section-title">Buy Item</h3>
+              <div className="muted">Quyền: bất kỳ ví nào (payer ký). 100% số tiền chuyển vào dev wallet.</div>
+              <label>Item ID</label>
+              <input type="number" value={buyItemId} onChange={(e) => setBuyItemId(Number(e.target.value))} />
+              <label>Amount (SOL)</label>
+              <input type="number" value={buyAmountSol} onChange={(e) => setBuyAmountSol(Number(e.target.value))} />
+              <button className="btn" disabled={!wallet.publicKey} onClick={onBuy}>Buy</button>
+            </div>
+
+            <div className="card">
+              <h3 className="section-title">Trade Item</h3>
+              <div className="muted">Quyền: buyer ký; seller chỉ là ví nhận. Phí gửi vào dev wallet.</div>
+              <label>Item ID</label>
+              <input type="number" value={tradeItemId} onChange={(e) => setTradeItemId(Number(e.target.value))} />
+              <label>Seller</label>
+              <input value={tradeSeller} onChange={(e) => setTradeSeller(e.target.value)} placeholder="Seller pubkey" />
+              <label>Amount (SOL)</label>
+              <input type="number" value={tradeAmountSol} onChange={(e) => setTradeAmountSol(Number(e.target.value))} />
+              <button className="btn" disabled={!wallet.publicKey} onClick={onTrade}>Trade</button>
+            </div>
+
+            <div className="card">
+              <h3 className="section-title">Land</h3>
+              <div className="muted">Initialize Land: chủ ví (owner) ký để tạo PDA đất của chính mình.</div>
+              <label>Land ID</label>
+              <input type="number" value={landId} onChange={(e) => setLandId(Number(e.target.value))} />
+              <div className="row">
+                <button className="btn" disabled={!wallet.publicKey} onClick={onInitLand}>Initialize Land</button>
+              </div>
+              <div className="muted">Transfer Land: chỉ chủ sở hữu hiện tại (owner) được ký để chuyển.</div>
+              <label>New Owner</label>
+              <input value={newOwner} onChange={(e) => setNewOwner(e.target.value)} placeholder="New owner pubkey" />
+              <button className="btn" disabled={!wallet.publicKey} onClick={onTransferLand}>Transfer Land</button>
+              <div className="muted">Note: Current PDA uses seed ["land", owner], so after transfer it won’t match the new owner for subsequent ops.</div>
+            </div>
+
+            <div className="card">
+              <h3 className="section-title">Claim Profit (placeholder)</h3>
+              <div className="muted">Quyền: bất kỳ ví nào (claimer ký). Hiện chỉ là placeholder, chưa có vault.</div>
+              <label>Amount (SOL)</label>
+              <input type="number" value={claimAmountSol} onChange={(e) => setClaimAmountSol(Number(e.target.value))} />
+              <button className="btn" disabled={!wallet.publicKey} onClick={onClaim}>Claim</button>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="status">
