@@ -242,7 +242,14 @@ export default function App() {
         </div>
         <WalletMultiButton />
       </div>
+      {!wallet.publicKey && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3 className="section-title">Kết nối ví để tiếp tục</h3>
+          <div className="muted">Vui lòng bấm nút Connect Wallet ở góc phải để bắt đầu sử dụng.</div>
+        </div>
+      )}
 
+      {wallet.publicKey && (
       <div className="card">
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <div>
@@ -353,6 +360,7 @@ export default function App() {
           </>
         )}
       </div>
+      )}
 
       <div className="status">
         {status.kind === 'working' && <span>Working…</span>}
