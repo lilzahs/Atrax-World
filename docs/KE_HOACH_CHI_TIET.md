@@ -1,3 +1,33 @@
+## Cập nhật (2025-09)
+- Anchor on-chain: `anchor-lang = "0.31.0"`; FE dùng `@coral-xyz/anchor@^0.31.0`
+- Đã thêm instruction `update_admin(new_admin: Pubkey)`
+- FE (React + Vite) cho test smart contract đặt tại `server/smart-contracts/atrax/frontend`
+  - Tự ẩn/hiện form Initialize tùy trạng thái Config trên chain
+  - Khóa (làm mờ) Update Config/Admin nếu ví không phải admin
+  - Tự lấy `dev_wallet` từ Config cho Donate/Buy/Trade (không cần nhập tay)
+  - Ưu tiên tải IDL từ on-chain; fallback sang IDL bundle
+- Đồng bộ IDL sau mỗi lần `anchor build`:
+  - `cp server/smart-contracts/atrax/target/idl/atrax.json server/smart-contracts/atrax/frontend/src/idl/atrax.json`
+- Deploy (devnet): `anchor deploy` theo `Anchor.toml`; FE đọc Program ID từ IDL
+
+### Quyền & Vai trò
+- Admin: ví ký khi Initialize; có quyền `update_config`, `update_admin`
+- Dev wallet: nhận phí/thu nhập; phải khớp `config.dev_wallet` trong các lệnh Donate/Buy/Trade
+- Land: không liên quan đến admin/dev; owner là authority của `initialize_land`/`transfer_land`
+
+### API chính
+- initialize(dev_wallet, fee_bps)
+- update_config(new_dev_wallet, new_fee_bps)
+- update_admin(new_admin)
+- donate(amount)
+- buy_item(_item_id, amount)
+- trade_item(_item_id, amount)
+- initialize_land(land_id)
+- transfer_land(land_id, new_owner)
+- claim_profit(_amount) [placeholder]
+
+Chi tiết đầy đủ: xem `docs/API.md`.
+
 ID program : 35eYtQ3hgAqmDUtwcEQ6WFKfQri7figJGe9vR25mmMiC
 # Atrax World - Kế Hoạch Chi Tiết & Hướng Dẫn Phát Triển
 
@@ -174,7 +204,7 @@ class SolanaManager {
 }
 ```
 
-### Phase 2: Game Client (Bạn - Game Development)
+### Phase 2: Game Client (Zah - Game Development)
 
 #### 2.1 Basic Game Engine
 **Files cần tạo:**
