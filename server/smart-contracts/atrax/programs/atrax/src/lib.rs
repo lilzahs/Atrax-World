@@ -149,6 +149,14 @@ pub mod atrax {
         // TODO: implement vault-based claims; emit event for now
         Ok(())
     }
+
+    // Admin can update admin authority to a new pubkey.
+    pub fn update_admin(ctx: Context<UpdateAdmin>, new_admin: Pubkey) -> Result<()> {
+        let cfg = &mut ctx.accounts.config;
+        cfg.admin = new_admin;
+        emit!(AdminUpdated { new_admin });
+        Ok(())
+    }
 }
 
 // =========================
@@ -263,6 +271,13 @@ pub struct ClaimProfit<'info> {
 }
 
 #[derive(Accounts)]
+pub struct UpdateAdmin<'info> {
+    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = admin)]
+    pub config: Account<'info, Config>,
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
 pub struct InitializeLand<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -319,6 +334,11 @@ pub struct TradeEvent {
 pub struct LandTransferEvent {
     pub land_id: u64,
     pub new_owner: Pubkey,
+}
+
+#[event]
+pub struct AdminUpdated {
+    pub new_admin: Pubkey,
 }
 
 #[error_code]
