@@ -104,13 +104,14 @@ export default function App() {
 
   const onInitialize = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
+    const adminPk = wallet.publicKey!;
     const dev = new PublicKey(initDevWallet);
     const fee = Number(initFeeBps) | 0;
     const [configPda] = findConfigPda();
     await withStatus(async () => {
       await program.methods
-        .initialize(dev, fee)
-        .accounts({ config: configPda, admin: wallet.publicKey, systemProgram: SystemProgram.programId })
+        .initialize!(dev, fee)
+        .accounts({ config: configPda, admin: adminPk, systemProgram: SystemProgram.programId })
         .rpc();
       await refreshConfig();
     }, 'Initialized config');
@@ -118,13 +119,14 @@ export default function App() {
 
   const onUpdateConfig = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
+    const adminPk = wallet.publicKey!;
     const dev = new PublicKey(updDevWallet);
     const fee = Number(updFeeBps) | 0;
     const [configPda] = findConfigPda();
     await withStatus(async () => {
       await program.methods
-        .updateConfig(dev, fee)
-        .accounts({ config: configPda, admin: wallet.publicKey })
+        .updateConfig!(dev, fee)
+        .accounts({ config: configPda, admin: adminPk })
         .rpc();
       await refreshConfig();
     }, 'Updated config');
@@ -132,6 +134,7 @@ export default function App() {
 
   const onUpdateAdmin = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
+    const adminPk = wallet.publicKey!;
     const newAdmin = safePublicKey(updAdmin);
     if (!newAdmin) { setStatus({ kind: 'err', msg: 'Pubkey admin mới không hợp lệ' }); return; }
     const [configPda] = findConfigPda();
@@ -143,7 +146,7 @@ export default function App() {
         throw new Error('IDL không có method update_admin/updateAdmin. Hãy chạy anchor build && deploy, rồi copy IDL mới sang FE. Methods: ' + available.join(', '));
       }
       console.log('update_admin call', { configPda: configPda.toBase58(), newAdmin: newAdmin.toBase58() });
-      const ix = await m(newAdmin).accounts({ config: configPda, admin: wallet.publicKey }).instruction();
+      const ix = await m(newAdmin).accounts({ config: configPda, admin: adminPk }).instruction();
       const tx = new (await import('@solana/web3.js')).Transaction().add(ix);
       await (program.provider as any).sendAndConfirm(tx);
       await refreshConfig();
@@ -152,6 +155,7 @@ export default function App() {
 
   const onDonate = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
+    const donorPk = wallet.publicKey!;
     if (!config) { setStatus({ kind: 'err', msg: 'No config found. Initialize first.' }); return; }
     const amount = new BN(Math.floor(Number(donAmountSol) * LAMPORTS_PER_SOL));
     const streamer = new PublicKey(donStreamer.trim());
@@ -159,14 +163,15 @@ export default function App() {
     const [configPda] = findConfigPda();
     await withStatus(async () => {
       await program.methods
-        .donate(amount)
-        .accounts({ donor: wallet.publicKey, streamer, devWallet, config: configPda, systemProgram: SystemProgram.programId })
+        .donate!(amount)
+        .accounts({ donor: donorPk, streamer, devWallet, config: configPda, systemProgram: SystemProgram.programId })
         .rpc();
     }, 'Donation sent');
   }, [program, wallet.publicKey, donAmountSol, donStreamer, config]);
 
   const onBuy = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
+    const payerPk = wallet.publicKey!;
     if (!config) { setStatus({ kind: 'err', msg: 'No config found. Initialize first.' }); return; }
     const itemId = Number(buyItemId) | 0;
     const amount = new BN(Math.floor(Number(buyAmountSol) * LAMPORTS_PER_SOL));
@@ -174,14 +179,15 @@ export default function App() {
     const [configPda] = findConfigPda();
     await withStatus(async () => {
       await program.methods
-        .buyItem(itemId, amount)
-        .accounts({ payer: wallet.publicKey, devWallet, config: configPda, systemProgram: SystemProgram.programId })
+        .buyItem!(itemId, amount)
+        .accounts({ payer: payerPk, devWallet, config: configPda, systemProgram: SystemProgram.programId })
         .rpc();
     }, 'Item purchased');
   }, [program, wallet.publicKey, buyItemId, buyAmountSol, config]);
 
   const onTrade = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
+    const buyerPk = wallet.publicKey!;
     if (!config) { setStatus({ kind: 'err', msg: 'No config found. Initialize first.' }); return; }
     const itemId = Number(tradeItemId) | 0;
     const amount = new BN(Math.floor(Number(tradeAmountSol) * LAMPORTS_PER_SOL));
@@ -190,44 +196,47 @@ export default function App() {
     const [configPda] = findConfigPda();
     await withStatus(async () => {
       await program.methods
-        .tradeItem(itemId, amount)
-        .accounts({ buyer: wallet.publicKey, seller, devWallet, config: configPda, systemProgram: SystemProgram.programId })
+        .tradeItem!(itemId, amount)
+        .accounts({ buyer: buyerPk, seller, devWallet, config: configPda, systemProgram: SystemProgram.programId })
         .rpc();
     }, 'Trade executed');
   }, [program, wallet.publicKey, tradeItemId, tradeAmountSol, tradeSeller, config]);
 
   const onInitLand = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
+    const ownerPk = wallet.publicKey!;
     const land = Number(landId);
     const [landPda] = findLandPda(wallet.publicKey);
     await withStatus(async () => {
       await program.methods
-        .initializeLand(new BN(land))
-        .accounts({ owner: wallet.publicKey, land: landPda, systemProgram: SystemProgram.programId })
+        .initializeLand!(new BN(land))
+        .accounts({ owner: ownerPk, land: landPda, systemProgram: SystemProgram.programId })
         .rpc();
     }, 'Land initialized');
   }, [program, wallet.publicKey, landId]);
 
   const onTransferLand = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
+    const ownerPk = wallet.publicKey!;
     const land = Number(landId);
     const [landPda] = findLandPda(wallet.publicKey);
     const newOwnerPk = new PublicKey(newOwner);
     await withStatus(async () => {
       await program.methods
-        .transferLand(new BN(land), newOwnerPk)
-        .accounts({ owner: wallet.publicKey, land: landPda })
+        .transferLand!(new BN(land), newOwnerPk)
+        .accounts({ owner: ownerPk, land: landPda })
         .rpc();
     }, 'Land transferred (note: PDA bound to original owner)');
   }, [program, wallet.publicKey, landId, newOwner]);
 
   const onClaim = useCallback(async () => {
     if (!program || !wallet.publicKey) return;
+    const claimerPk = wallet.publicKey!;
     const amount = new BN(Math.floor(Number(claimAmountSol) * LAMPORTS_PER_SOL));
     await withStatus(async () => {
       await program.methods
-        .claimProfit(amount)
-        .accounts({ claimer: wallet.publicKey })
+        .claimProfit!(amount)
+        .accounts({ claimer: claimerPk })
         .rpc();
     }, 'Claim invoked');
   }, [program, wallet.publicKey, claimAmountSol]);
@@ -250,6 +259,7 @@ export default function App() {
       )}
 
       {wallet.publicKey && (
+      <>
       <div className="card">
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <div>
@@ -360,6 +370,7 @@ export default function App() {
           </>
         )}
       </div>
+      </>
       )}
 
       <div className="status">
