@@ -2,6 +2,8 @@ Atrax Program API (Solana / Anchor)
 
 Program ID
 - `35eYtQ3hgAqmDUtwcEQ6WFKfQri7figJGe9vR25mmMiC`
+Dev wallet
+- `HrsRZ43rXfXJjLtzdyNYAVvNEZc6faQkMJwFhiHnVSUu`
 
 Accounts
 - `Config` PDA
