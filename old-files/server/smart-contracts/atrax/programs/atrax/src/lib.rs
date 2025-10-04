@@ -4,6 +4,10 @@ use anchor_lang::system_program;
 declare_id!("35eYtQ3hgAqmDUtwcEQ6WFKfQri7figJGe9vR25mmMiC");
 
 const BPS_DENOMINATOR: u64 = 10_000; // 100% = 10_000 bps
+// TTL for a claimed room session. A room is considered active
+// if current time <= room.expires_at. Kept constant for now
+// to make off-chain discovery simple and fast.
+const ROOM_TTL_SECONDS: i64 = 120;
 
 #[program]
 pub mod atrax {
@@ -31,7 +35,7 @@ pub mod atrax {
         cfg.fee_bps = new_fee_bps;
         emit!(ConfigUpdated { dev_wallet: new_dev_wallet, fee_bps: new_fee_bps });
         Ok(())
-    }
+    } 
 
     // Viewer donates lamports: 90% (by fee) to streamer, fee to dev wallet.
     pub fn donate(ctx: Context<Donate>, amount: u64) -> Result<()> {
@@ -163,22 +167,32 @@ pub mod atrax {
     // =========================
 
     // Initialize room settings (piece price) under separate PDA to avoid breaking Config.
-    pub fn initialize_room_settings(ctx: Context<InitializeRoomSettings>, piece_price: u64) -> Result<()> {
+    pub fn initialize_room_settings(
+        ctx: Context<InitializeRoomSettings>,
+        piece_price: u64,
+        deposit_required: u64,
+    ) -> Result<()> {
         let rs = &mut ctx.accounts.room_settings;
         rs.admin = ctx.accounts.admin.key();
         rs.piece_price = piece_price;
+        rs.deposit_required = deposit_required;
         rs.bump = ctx.bumps.room_settings;
         Ok(())
     }
 
     // Admin can update piece price
-    pub fn update_room_settings(ctx: Context<UpdateRoomSettings>, new_piece_price: u64) -> Result<()> {
+    pub fn update_room_settings(
+        ctx: Context<UpdateRoomSettings>,
+        new_piece_price: u64,
+        new_deposit_required: u64,
+    ) -> Result<()> {
         let rs = &mut ctx.accounts.room_settings;
         rs.piece_price = new_piece_price;
+        rs.deposit_required = new_deposit_required;
         Ok(())
     }
 
-    // Claim a room id for a streamer with metadata; expires after 120 seconds
+    // Claim a room id for a streamer with metadata; expires after ROOM_TTL_SECONDS
     pub fn claim_room(
         ctx: Context<ClaimRoom>,
         room_id: u32,
@@ -194,15 +208,57 @@ pub mod atrax {
 
         if room.timestamp != 0 {
             let diff = now - room.timestamp;
-            require!(diff >= 120, AtraxError::RoomNotExpired);
+            // Enforce cooldown before another claim on the same room id
+            require!(diff >= ROOM_TTL_SECONDS, AtraxError::RoomNotExpired);
+            // If previous session left a deposit, refund it to previous owner
+            if room.deposit_lamports > 0 && room.player_wallet != Pubkey::default() {
+                require_keys_eq!(
+                    ctx.accounts.streamer_prev.key(),
+                    room.player_wallet,
+                    AtraxError::InvalidStreamer
+                );
+                let amount = room.deposit_lamports;
+                let seeds: &[&[u8]] = &[b"room", &room_id.to_le_bytes(), &[room.bump]];
+                let cpi_accounts = system_program::Transfer {
+                    from: room.to_account_info(),
+                    to: ctx.accounts.streamer_prev.to_account_info(),
+                };
+                let cpi_ctx = CpiContext::new_with_signer(
+                    ctx.accounts.system_program.to_account_info(),
+                    cpi_accounts,
+                    &[seeds],
+                );
+                system_program::transfer(cpi_ctx, amount)?;
+                room.deposit_lamports = 0;
+            }
         }
 
         room.room_name = room_name;
         room.stream_url = stream_url;
         room.player_wallet = ctx.accounts.streamer.key();
+        room.room_id = room_id;
         room.latest_chosen_piece = 0;
         room.last_buyer = Pubkey::default();
         room.timestamp = now;
+        room.expires_at = now
+            .checked_add(ROOM_TTL_SECONDS)
+            .ok_or(AtraxError::MathOverflow)?;
+        room.status = 1; // active
+        room.purchase_count = 0;
+        // set bump for PDA-signed ops
+        room.bump = ctx.bumps.room;
+
+        // take deposit if configured
+        let deposit = ctx.accounts.room_settings.deposit_required;
+        if deposit > 0 {
+            let cpi_accounts = system_program::Transfer {
+                from: ctx.accounts.streamer.to_account_info(),
+                to: room.to_account_info(),
+            };
+            let cpi_ctx = CpiContext::new(ctx.accounts.system_program.to_account_info(), cpi_accounts);
+            system_program::transfer(cpi_ctx, deposit)?;
+            room.deposit_lamports = deposit;
+        }
 
         emit!(RoomClaimed { room_id, streamer: room.player_wallet });
         Ok(())
@@ -241,12 +297,91 @@ pub mod atrax {
             system_program::transfer(cpi_ctx, fee)?;
         }
 
+        // Ensure room is active and not expired
+        let now = Clock::get()?.unix_timestamp;
+        require!(now <= ctx.accounts.room.expires_at, AtraxError::RoomExpired);
+        require!(ctx.accounts.room.status == 1, AtraxError::RoomPaused);
+
         // update room state
         let room = &mut ctx.accounts.room;
         room.latest_chosen_piece = piece_type;
         room.last_buyer = ctx.accounts.buyer.key();
-        room.timestamp = Clock::get()?.unix_timestamp;
+        room.timestamp = now;
+        // Refresh expiry to keep room active while there is engagement
+        room.expires_at = now
+            .checked_add(ROOM_TTL_SECONDS)
+            .ok_or(AtraxError::MathOverflow)?;
         emit!(PieceChosen { room_id, piece_type, buyer: room.last_buyer });
+        Ok(())
+    }
+
+    // Update room metadata (name/url). Only owner (or admin) can call.
+    pub fn update_room_metadata(
+        ctx: Context<UpdateRoomMetadata>,
+        room_id: u32,
+        room_name: String,
+        stream_url: String,
+    ) -> Result<()> {
+        require!(room_name.len() <= 50, AtraxError::RoomNameTooLong);
+        require!(stream_url.len() <= 200, AtraxError::StreamUrlTooLong);
+        let room = &mut ctx.accounts.room;
+        let caller = ctx.accounts.authority.key();
+        let is_admin = ctx.accounts.config.admin == caller;
+        require!(caller == room.player_wallet || is_admin, AtraxError::Unauthorized);
+
+        room.room_name = room_name;
+        room.stream_url = stream_url;
+        emit!(RoomUpdated { room_id, streamer: room.player_wallet });
+        Ok(())
+    }
+
+    // Change room status: 0=inactive,1=active,2=paused,3=ended
+    pub fn set_room_status(
+        ctx: Context<SetRoomStatus>,
+        room_id: u32,
+        new_status: u8,
+    ) -> Result<()> {
+        require!(new_status <= 3, AtraxError::InvalidStatus);
+        let room = &mut ctx.accounts.room;
+        let caller = ctx.accounts.authority.key();
+        let is_admin = ctx.accounts.config.admin == caller;
+        require!(caller == room.player_wallet || is_admin, AtraxError::Unauthorized);
+
+        room.status = new_status;
+        if new_status == 1 {
+            // resume -> refresh expiry
+            let now = Clock::get()?.unix_timestamp;
+            room.expires_at = now.checked_add(ROOM_TTL_SECONDS).ok_or(AtraxError::MathOverflow)?;
+        }
+        emit!(RoomStatusChanged { room_id, status: new_status });
+        Ok(())
+    }
+
+    // Release a room: refund deposit to owner, mark ended
+    pub fn release_room(ctx: Context<ReleaseRoom>, room_id: u32) -> Result<()> {
+        let room = &mut ctx.accounts.room;
+        let caller = ctx.accounts.authority.key();
+        let is_admin = ctx.accounts.config.admin == caller;
+        require!(caller == room.player_wallet || is_admin, AtraxError::Unauthorized);
+
+        // Refund deposit if any
+        if room.deposit_lamports > 0 {
+            let amount = room.deposit_lamports;
+            let seeds: &[&[u8]] = &[b"room", &room_id.to_le_bytes(), &[room.bump]];
+            let cpi_accounts = system_program::Transfer {
+                from: room.to_account_info(),
+                to: ctx.accounts.streamer.to_account_info(),
+            };
+            let cpi_ctx = CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                cpi_accounts,
+                &[seeds],
+            );
+            system_program::transfer(cpi_ctx, amount)?;
+            room.deposit_lamports = 0;
+        }
+        room.status = 3; // ended
+        emit!(RoomReleased { room_id, streamer: room.player_wallet });
         Ok(())
     }
 }
@@ -284,11 +419,12 @@ impl LandAccount {
 pub struct RoomSettings {
     pub admin: Pubkey,
     pub piece_price: u64,
+    pub deposit_required: u64,
     pub bump: u8,
 }
 
 impl RoomSettings {
-    pub const LEN: usize = 32 + 8 + 1;
+    pub const LEN: usize = 32 + 8 + 8 + 1;
 }
 
 // Streaming room state
@@ -297,14 +433,21 @@ pub struct Room {
     pub room_name: String,
     pub stream_url: String,
     pub player_wallet: Pubkey,
+    pub room_id: u32,
     pub latest_chosen_piece: u8,
     pub last_buyer: Pubkey,
     pub timestamp: i64,
+    pub expires_at: i64,
+    pub status: u8,
+    pub deposit_lamports: u64,
+    pub purchase_count: u32,
+    pub bump: u8,
 }
 
 impl Room {
     // Strings have a 4-byte length prefix; allocate for 50 and 200 chars respectively
-    pub const LEN: usize = (4 + 50) + (4 + 200) + 32 + 1 + 32 + 8;
+    // Layout: name, url, player_wallet, room_id, latest_piece, last_buyer, timestamp, expires_at
+    pub const LEN: usize = (4 + 50) + (4 + 200) + 32 + 4 + 1 + 32 + 8 + 8 + 1 + 8 + 4 + 1;
 }
 
 // =========================
@@ -359,6 +502,11 @@ pub struct ClaimRoom<'info> {
         bump
     )]
     pub room: Account<'info, Room>,
+    #[account(seeds = [b"room_settings"], bump = room_settings.bump)]
+    pub room_settings: Account<'info, RoomSettings>,
+    /// CHECK: previous streamer for refund (can be default)
+    #[account(mut)]
+    pub streamer_prev: UncheckedAccount<'info>,
     #[account(mut)]
     pub streamer: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -386,6 +534,55 @@ pub struct ChoosePiece<'info> {
     /// CHECK: validated to equal config.dev_wallet
     #[account(mut)]
     pub dev_wallet: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(room_id: u32)]
+pub struct UpdateRoomMetadata<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, Config>,
+    #[account(
+        mut,
+        seeds = [b"room", room_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub room: Account<'info, Room>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(room_id: u32)]
+pub struct SetRoomStatus<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, Config>,
+    #[account(
+        mut,
+        seeds = [b"room", room_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub room: Account<'info, Room>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(room_id: u32)]
+pub struct ReleaseRoom<'info> {
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, Config>,
+    #[account(
+        mut,
+        seeds = [b"room", room_id.to_le_bytes().as_ref()],
+        bump,
+    )]
+    pub room: Account<'info, Room>,
+    /// CHECK: funds receiver (streamer/owner)
+    #[account(mut)]
+    pub streamer: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -537,6 +734,24 @@ pub struct PieceChosen {
     pub buyer: Pubkey,
 }
 
+#[event]
+pub struct RoomUpdated {
+    pub room_id: u32,
+    pub streamer: Pubkey,
+}
+
+#[event]
+pub struct RoomStatusChanged {
+    pub room_id: u32,
+    pub status: u8,
+}
+
+#[event]
+pub struct RoomReleased {
+    pub room_id: u32,
+    pub streamer: Pubkey,
+}
+
 #[error_code]
 pub enum AtraxError {
     #[msg("Amount must be greater than zero")] 
@@ -565,4 +780,10 @@ pub enum AtraxError {
     RoomNotExpired,
     #[msg("Invalid streamer wallet for room")] 
     InvalidStreamer,
+    #[msg("Room is expired")] 
+    RoomExpired,
+    #[msg("Room is paused or inactive")] 
+    RoomPaused,
+    #[msg("Invalid status value")] 
+    InvalidStatus,
 }

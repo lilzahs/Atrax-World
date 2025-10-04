@@ -32,4 +32,14 @@ export function findLandPda(owner: PublicKey): [PublicKey, number] {
   return PublicKey.findProgramAddressSync([Buffer.from('land'), owner.toBuffer()], PROGRAM_ID);
 }
 
+export function findRoomSettingsPda(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([Buffer.from('room_settings')], PROGRAM_ID);
+}
+
+export function findRoomPda(roomId: number): [PublicKey, number] {
+  const le = Buffer.alloc(4);
+  le.writeUInt32LE(roomId >>> 0, 0);
+  return PublicKey.findProgramAddressSync([Buffer.from('room'), le], PROGRAM_ID);
+}
+
 export { SystemProgram };

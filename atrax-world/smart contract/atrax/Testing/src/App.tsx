@@ -4,7 +4,7 @@ import { useWallet as useWalletBase, useAnchorWallet } from '@solana/wallet-adap
 import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js';
 import { AnchorProvider, BN } from '@coral-xyz/anchor';
 import { Buffer } from 'buffer';
-import { getProgram, loadProgram, getProvider, findConfigPda, findLandPda, SystemProgram, PROGRAM_ID } from './anchor';
+import { getProgram, loadProgram, getProvider, findConfigPda, findLandPda, findRoomPda, findRoomSettingsPda, SystemProgram, PROGRAM_ID, getConnection } from './anchor';
 
 type Status = { kind: 'idle' | 'working' | 'ok' | 'err'; msg?: string };
 
@@ -88,6 +88,31 @@ export default function App() {
   const [newOwner, setNewOwner] = useState('');
 
   const [claimAmountSol, setClaimAmountSol] = useState(0.01);
+  // --- Streamer Room Management State ---
+  const [rsPiecePriceSol, setRsPiecePriceSol] = useState(0.01);
+  const [rsDepositSol, setRsDepositSol] = useState(0);
+  const [roomSettingsInfo, setRoomSettingsInfo] = useState<null | { piecePriceLamports: string; depositLamports: string }>(null);
+
+  const [roomId, setRoomId] = useState(0);
+  const [roomName, setRoomName] = useState('');
+  const [roomUrl, setRoomUrl] = useState('');
+  const [roomPrevStreamer, setRoomPrevStreamer] = useState('');
+
+  const [roomUpdName, setRoomUpdName] = useState('');
+  const [roomUpdUrl, setRoomUpdUrl] = useState('');
+  const [roomNewStatus, setRoomNewStatus] = useState<1 | 2 | 3>(2);
+
+  type RoomLite = {
+    pda: string;
+    id: number;
+    name: string;
+    url: string;
+    owner: string;
+    status: number;
+    expiresAt: number;
+    lastBuyer: string;
+  };
+  const [rooms, setRooms] = useState<RoomLite[]>([]);
 
   async function withStatus<T>(fn: () => Promise<T>, ok: string) {
     setStatus({ kind: 'working' });
@@ -241,6 +266,181 @@ export default function App() {
     }, 'Claim invoked');
   }, [program, wallet.publicKey, claimAmountSol]);
 
+  // --- Streamer Room Management Helpers & Actions ---
+  function parseRoomAccount(data: Buffer): RoomLite | null {
+    try {
+      let o = 8; // discriminator
+      const rnLen = data.readUInt32LE(o); o += 4;
+      const rn = data.slice(o, o + rnLen).toString('utf8'); o += rnLen;
+      const suLen = data.readUInt32LE(o); o += 4;
+      const su = data.slice(o, o + suLen).toString('utf8'); o += suLen;
+      const player = new PublicKey(data.slice(o, o + 32)); o += 32;
+      const rid = data.readUInt32LE(o); o += 4;
+      o += 1; // latest_chosen_piece (skip)
+      const lastBuyer = new PublicKey(data.slice(o, o + 32)); o += 32;
+      const exp = Number(data.readBigInt64LE(o + 8)); // skip timestamp at o, expires_at at o+8
+      const status = data.readUInt8(o + 8 + 8);
+      return {
+        pda: '',
+        id: rid,
+        name: rn,
+        url: su,
+        owner: player.toBase58(),
+        status,
+        expiresAt: exp,
+        lastBuyer: lastBuyer.toBase58(),
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  const refreshRoomSettings = useCallback(async () => {
+    if (!program) return;
+    const [pda] = findRoomSettingsPda();
+    const ai = await program.provider.connection.getAccountInfo(pda);
+    if (!ai) { setRoomSettingsInfo(null); return; }
+    // Layout: admin:32, piece_price:u64, deposit:u64, bump:u8
+    const data = Buffer.from(ai.data);
+    const off = 8 + 32; // skip discr + admin
+    const piece = data.readBigUInt64LE(off);
+    const deposit = data.readBigUInt64LE(off + 8);
+    setRoomSettingsInfo({ piecePriceLamports: piece.toString(), depositLamports: deposit.toString() });
+  }, [program]);
+
+  const refreshRooms = useCallback(async () => {
+    const conn = program?.provider?.connection ?? getConnection();
+    const ids = Array.from({ length: 100 }, (_, i) => i);
+    const pdas = ids.map((i) => findRoomPda(i)[0]);
+    const out: RoomLite[] = [];
+    const chunkSize = 20;
+    for (let i = 0; i < pdas.length; i += chunkSize) {
+      const chunk = pdas.slice(i, i + chunkSize);
+      const infos = await conn.getMultipleAccountsInfo(chunk);
+      for (let j = 0; j < chunk.length; j++) {
+        const ai = infos[j];
+        if (!ai) continue;
+        const r = parseRoomAccount(Buffer.from(ai.data));
+        if (r) {
+          r.pda = chunk[j].toBase58();
+          out.push(r);
+        }
+      }
+    }
+    const now = Math.floor(Date.now() / 1000);
+    out.sort((a, b) => {
+      const aActive = Number(now <= a.expiresAt && a.status === 1);
+      const bActive = Number(now <= b.expiresAt && b.status === 1);
+      if (aActive !== bActive) return bActive - aActive;
+      return b.expiresAt - a.expiresAt;
+    });
+    setRooms(out);
+  }, [program]);
+
+  // Auto refresh viewer dashboard periodically
+  useEffect(() => {
+    refreshRooms();
+    const t = setInterval(refreshRooms, 20000);
+    return () => clearInterval(t);
+  }, [refreshRooms]);
+
+  const getMethod = useCallback((nameSnake: string, nameCamel: string) => {
+    const methods = (program as any)?.methods || {};
+    return methods[nameSnake] || methods[nameCamel] || null;
+  }, [program]);
+
+  const onInitRoomSettings = useCallback(async () => {
+    if (!program || !wallet.publicKey) return;
+    const pieceLamports = new BN(Math.floor(Number(rsPiecePriceSol) * LAMPORTS_PER_SOL));
+    const depositLamports = new BN(Math.floor(Number(rsDepositSol) * LAMPORTS_PER_SOL));
+    const [pda] = findRoomSettingsPda();
+    await withStatus(async () => {
+      const m = getMethod('initialize_room_settings', 'initializeRoomSettings');
+      if (!m) throw new Error('IDL chưa có initialize_room_settings. Hãy anchor build && deploy, rồi cập nhật IDL vào FE.');
+      await m(pieceLamports, depositLamports)
+        .accounts({ roomSettings: pda, admin: wallet.publicKey, systemProgram: SystemProgram.programId })
+        .rpc();
+      await refreshRoomSettings();
+    }, 'Initialized Room Settings');
+  }, [program, wallet.publicKey, rsPiecePriceSol, rsDepositSol, refreshRoomSettings, getMethod]);
+
+  const onUpdateRoomSettings = useCallback(async () => {
+    if (!program || !wallet.publicKey) return;
+    const pieceLamports = new BN(Math.floor(Number(rsPiecePriceSol) * LAMPORTS_PER_SOL));
+    const depositLamports = new BN(Math.floor(Number(rsDepositSol) * LAMPORTS_PER_SOL));
+    const [pda] = findRoomSettingsPda();
+    await withStatus(async () => {
+      const m = getMethod('update_room_settings', 'updateRoomSettings');
+      if (!m) throw new Error('IDL chưa có update_room_settings. Cập nhật IDL.');
+      await m(pieceLamports, depositLamports)
+        .accounts({ roomSettings: pda, admin: wallet.publicKey })
+        .rpc();
+      await refreshRoomSettings();
+    }, 'Updated Room Settings');
+  }, [program, wallet.publicKey, rsPiecePriceSol, rsDepositSol, refreshRoomSettings, getMethod]);
+
+  const onClaimRoom = useCallback(async () => {
+    if (!program || !wallet.publicKey) return;
+    const id = Number(roomId) | 0;
+    const [roomPda] = findRoomPda(id);
+    const [rsPda] = findRoomSettingsPda();
+    const prev = roomPrevStreamer.trim();
+    const prevPk = prev ? new PublicKey(prev) : wallet.publicKey;
+    await withStatus(async () => {
+      const m = getMethod('claim_room', 'claimRoom');
+      if (!m) throw new Error('IDL chưa có claim_room. Cập nhật IDL.');
+      await m(id, roomName, roomUrl)
+        .accounts({ room: roomPda, roomSettings: rsPda, streamerPrev: prevPk, streamer: wallet.publicKey, systemProgram: SystemProgram.programId })
+        .rpc();
+      await refreshRooms();
+    }, 'Room claimed');
+  }, [program, wallet.publicKey, roomId, roomName, roomUrl, roomPrevStreamer, getMethod, refreshRooms]);
+
+  const onUpdateRoomMetadata = useCallback(async () => {
+    if (!program || !wallet.publicKey) return;
+    const id = Number(roomId) | 0;
+    const [roomPda] = findRoomPda(id);
+    const [configPda] = findConfigPda();
+    await withStatus(async () => {
+      const m = getMethod('update_room_metadata', 'updateRoomMetadata');
+      if (!m) throw new Error('IDL chưa có update_room_metadata. Cập nhật IDL.');
+      await m(id, roomUpdName, roomUpdUrl)
+        .accounts({ config: configPda, room: roomPda, authority: wallet.publicKey })
+        .rpc();
+      await refreshRooms();
+    }, 'Room metadata updated');
+  }, [program, wallet.publicKey, roomId, roomUpdName, roomUpdUrl, getMethod, refreshRooms]);
+
+  const onSetRoomStatus = useCallback(async () => {
+    if (!program || !wallet.publicKey) return;
+    const id = Number(roomId) | 0;
+    const [roomPda] = findRoomPda(id);
+    const [configPda] = findConfigPda();
+    await withStatus(async () => {
+      const m = getMethod('set_room_status', 'setRoomStatus');
+      if (!m) throw new Error('IDL chưa có set_room_status. Cập nhật IDL.');
+      await m(id, roomNewStatus)
+        .accounts({ config: configPda, room: roomPda, authority: wallet.publicKey })
+        .rpc();
+      await refreshRooms();
+    }, 'Room status updated');
+  }, [program, wallet.publicKey, roomId, roomNewStatus, getMethod, refreshRooms]);
+
+  const onReleaseRoom = useCallback(async () => {
+    if (!program || !wallet.publicKey) return;
+    const id = Number(roomId) | 0;
+    const [roomPda] = findRoomPda(id);
+    const [configPda] = findConfigPda();
+    await withStatus(async () => {
+      const m = getMethod('release_room', 'releaseRoom');
+      if (!m) throw new Error('IDL chưa có release_room. Cập nhật IDL.');
+      await m(id)
+        .accounts({ config: configPda, room: roomPda, streamer: wallet.publicKey, authority: wallet.publicKey, systemProgram: SystemProgram.programId })
+        .rpc();
+      await refreshRooms();
+    }, 'Room released');
+  }, [program, wallet.publicKey, roomId, getMethod, refreshRooms]);
+
   return (
     <div className="container">
       <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -250,6 +450,34 @@ export default function App() {
           <div className="muted">Config PDA: <span className="mono">{findConfigPda()[0].toBase58()}</span></div>
         </div>
         <WalletMultiButton />
+      </div>
+      {/* Viewer: Live Rooms (no wallet required) */}
+      <div className="card" style={{ marginTop: 12 }}>
+        <h3 className="section-title">Live Rooms</h3>
+        <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+          <button className="btn alt" onClick={refreshRooms}>Refresh</button>
+          <div className="muted">Danh sách các room đang hoạt động (0..99)</div>
+        </div>
+        <div style={{ maxHeight: 260, overflowY: 'auto', marginTop: 8 }}>
+          {rooms.map((r) => {
+            const now = Math.floor(Date.now() / 1000);
+            const active = now <= r.expiresAt && r.status === 1;
+            return (
+              <div key={`viewer-${r.id}`} className="row" style={{ justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #333' }}>
+                <div>
+                  <div><strong>Room {r.id}</strong> {active ? '🟢' : '⚪️'} — <span className="muted">{r.name}</span></div>
+                  <div className="muted mono" style={{ fontSize: 12 }}>Owner: {r.owner}</div>
+                  <div className="muted mono" style={{ fontSize: 12 }}>URL: {r.url}</div>
+                </div>
+                <div className="muted" style={{ textAlign: 'right' }}>
+                  <div>status: {r.status}</div>
+                  <div>expires: {new Date(r.expiresAt * 1000).toLocaleTimeString()}</div>
+                </div>
+              </div>
+            );
+          })}
+          {rooms.length === 0 && <div className="muted">Chưa có room nào.</div>}
+        </div>
       </div>
       {!wallet.publicKey && (
         <div className="card" style={{ marginTop: 16 }}>
@@ -366,6 +594,106 @@ export default function App() {
               <label>Amount (SOL)</label>
               <input type="number" value={claimAmountSol} onChange={(e) => setClaimAmountSol(Number(e.target.value))} />
               <button className="btn" disabled={!wallet.publicKey} onClick={onClaim}>Claim</button>
+            </div>
+            {/* Streamer Room Management */}
+            <div className="card">
+              <h3 className="section-title">Room Settings</h3>
+              <div className="muted">Thiết lập giá piece và tiền đặt cọc khi claim.</div>
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn alt" onClick={refreshRoomSettings}>Refresh</button>
+                {roomSettingsInfo && (
+                  <div className="muted">Current: price {Number(roomSettingsInfo.piecePriceLamports)/LAMPORTS_PER_SOL} SOL, deposit {Number(roomSettingsInfo.depositLamports)/LAMPORTS_PER_SOL} SOL</div>
+                )}
+              </div>
+              <label>Piece Price (SOL)</label>
+              <input type="number" value={rsPiecePriceSol} onChange={(e) => setRsPiecePriceSol(Number(e.target.value))} />
+              <label>Deposit Required (SOL)</label>
+              <input type="number" value={rsDepositSol} onChange={(e) => setRsDepositSol(Number(e.target.value))} />
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn" onClick={onInitRoomSettings}>Initialize RoomSettings</button>
+                <button className="btn" onClick={onUpdateRoomSettings}>Update RoomSettings</button>
+              </div>
+              <div className="muted">Yêu cầu: IDL đã cập nhật các hàm initialize_room_settings / update_room_settings.</div>
+            </div>
+
+            <div className="card">
+              <h3 className="section-title">Claim Room</h3>
+              <div className="muted">Streamer claim một room id (0..99). Tự động gia hạn khi có lượt mua piece. Nếu room đã có cọc cũ sẽ hoàn trả cho chủ trước.</div>
+              <label>Room ID</label>
+              <input type="number" value={roomId} onChange={(e) => setRoomId(Number(e.target.value))} />
+              <label>Room Name</label>
+              <input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder="Tên room" />
+              <label>Stream URL</label>
+              <input value={roomUrl} onChange={(e) => setRoomUrl(e.target.value)} placeholder="https://..." />
+              <label>Previous Streamer (for refund)</label>
+              <input value={roomPrevStreamer} onChange={(e) => setRoomPrevStreamer(e.target.value)} placeholder="Pubkey chủ cũ (nếu có)" />
+              <button className="btn" onClick={onClaimRoom}>Claim</button>
+              <div className="muted">Yêu cầu: IDL đã có claim_room.</div>
+            </div>
+
+            <div className="card">
+              <h3 className="section-title">Update Room Metadata</h3>
+              <div className="muted">Chủ room hoặc admin có thể cập nhật tên/URL.</div>
+              <label>Room ID</label>
+              <input type="number" value={roomId} onChange={(e) => setRoomId(Number(e.target.value))} />
+              <label>New Name</label>
+              <input value={roomUpdName} onChange={(e) => setRoomUpdName(e.target.value)} />
+              <label>New URL</label>
+              <input value={roomUpdUrl} onChange={(e) => setRoomUpdUrl(e.target.value)} />
+              <button className="btn" onClick={onUpdateRoomMetadata}>Update Metadata</button>
+              <div className="muted">Yêu cầu: IDL đã có update_room_metadata.</div>
+            </div>
+
+            <div className="card">
+              <h3 className="section-title">Set Room Status</h3>
+              <div className="muted">Trạng thái: 1=Active, 2=Paused, 3=Ended. Resume sẽ gia hạn TTL.</div>
+              <label>Room ID</label>
+              <input type="number" value={roomId} onChange={(e) => setRoomId(Number(e.target.value))} />
+              <label>Status</label>
+              <select value={roomNewStatus} onChange={(e) => setRoomNewStatus(Number(e.target.value) as any)}>
+                <option value={1}>Active</option>
+                <option value={2}>Paused</option>
+                <option value={3}>Ended</option>
+              </select>
+              <button className="btn" onClick={onSetRoomStatus}>Update Status</button>
+              <div className="muted">Yêu cầu: IDL đã có set_room_status.</div>
+            </div>
+
+            <div className="card">
+              <h3 className="section-title">Release Room</h3>
+              <div className="muted">Kết thúc buổi stream, hoàn trả deposit (nếu có) về ví streamer.</div>
+              <label>Room ID</label>
+              <input type="number" value={roomId} onChange={(e) => setRoomId(Number(e.target.value))} />
+              <button className="btn" onClick={onReleaseRoom}>Release</button>
+              <div className="muted">Yêu cầu: IDL đã có release_room.</div>
+            </div>
+
+            <div className="card">
+              <h3 className="section-title">Rooms Dashboard</h3>
+              <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                <button className="btn alt" onClick={refreshRooms}>Refresh Rooms</button>
+                <div className="muted">Hiển thị 0..99 rooms, ưu tiên phòng đang hoạt động.</div>
+              </div>
+              <div style={{ maxHeight: 260, overflowY: 'auto', marginTop: 8 }}>
+                {rooms.map((r) => {
+                  const now = Math.floor(Date.now() / 1000);
+                  const active = now <= r.expiresAt && r.status === 1;
+                  return (
+                    <div key={`${r.id}`} className="row" style={{ justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #333' }}>
+                      <div>
+                        <div><strong>Room {r.id}</strong> {active ? '🟢' : '⚪️'} — <span className="muted">{r.name}</span></div>
+                        <div className="muted mono" style={{ fontSize: 12 }}>Owner: {r.owner}</div>
+                        <div className="muted mono" style={{ fontSize: 12 }}>URL: {r.url}</div>
+                      </div>
+                      <div className="muted" style={{ textAlign: 'right' }}>
+                        <div>status: {r.status}</div>
+                        <div>expires: {new Date(r.expiresAt * 1000).toLocaleTimeString()}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {rooms.length === 0 && <div className="muted">Chưa có room nào.</div>}
+              </div>
             </div>
           </>
         )}
