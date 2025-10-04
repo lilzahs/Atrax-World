@@ -1,0 +1,6 @@
+# This is a placeholder file for cavalry-soldier.png
+# Replace this file with your custom Cavalry Soldier sprite
+# Recommended size: 32x48 pixels (taller character)
+# Format: PNG with transparency
+# Should include 4 directions: up, down, left, right
+# Animation frames: idle, walk, charge (2-4 frames per action)

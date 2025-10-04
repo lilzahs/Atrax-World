@@ -1,0 +1,6 @@
+# This is a placeholder file for desert-female-villager.png
+# Replace this file with your custom Desert female villager sprite
+# Recommended size: 32x48 pixels (taller character)
+# Format: PNG with transparency
+# Should include 4 directions: up, down, left, right
+# Animation frames: idle, walk (2-4 frames per direction)
