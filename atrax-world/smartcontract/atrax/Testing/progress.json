@@ -1,0 +1,33 @@
+{
+  "lastUpdated": "2025-10-04T00:00:00Z",
+  "onchain": {
+    "initialize": true,
+    "update_config": true,
+    "donate": true,
+    "buy_item": true,
+    "trade_item": true,
+    "initialize_land": true,
+    "transfer_land": true,
+    "claim_profit": true,
+    "update_admin": true,
+    "initialize_room_settings": true,
+    "update_room_settings": true,
+    "claim_room": true,
+    "choose_item": true,
+    "update_room_metadata": false,
+    "set_room_status": false,
+    "release_room": false
+  },
+  "ui": {
+    "config": true,
+    "donate": true,
+    "buy": true,
+    "trade": true,
+    "land": true,
+    "claim_profit": true,
+    "room_settings": true,
+    "claim_room": true,
+    "choose_item": false,
+    "live_rooms_extras": false
+  }
+}

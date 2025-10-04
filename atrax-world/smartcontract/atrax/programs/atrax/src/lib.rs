@@ -159,22 +159,22 @@ pub mod atrax {
     }
 
     // =========================
-    // Streaming Rooms (claim + choose piece)
+    // Streaming Rooms (claim + choose item)
     // =========================
 
-    // Initialize room settings (piece price) under separate PDA to avoid breaking Config.
-    pub fn initialize_room_settings(ctx: Context<InitializeRoomSettings>, piece_price: u64) -> Result<()> {
+    // Initialize room settings (item price) under separate PDA to avoid breaking Config.
+    pub fn initialize_room_settings(ctx: Context<InitializeRoomSettings>, item_price: u64) -> Result<()> {
         let rs = &mut ctx.accounts.room_settings;
         rs.admin = ctx.accounts.admin.key();
-        rs.piece_price = piece_price;
+        rs.item_price = item_price;
         rs.bump = ctx.bumps.room_settings;
         Ok(())
     }
 
-    // Admin can update piece price
-    pub fn update_room_settings(ctx: Context<UpdateRoomSettings>, new_piece_price: u64) -> Result<()> {
+    // Admin can update item price
+    pub fn update_room_settings(ctx: Context<UpdateRoomSettings>, new_item_price: u64) -> Result<()> {
         let rs = &mut ctx.accounts.room_settings;
-        rs.piece_price = new_piece_price;
+        rs.item_price = new_item_price;
         Ok(())
     }
 
@@ -200,7 +200,7 @@ pub mod atrax {
         room.room_name = room_name;
         room.stream_url = stream_url;
         room.player_wallet = ctx.accounts.streamer.key();
-        room.latest_chosen_piece = 0;
+        room.latest_chosen_item = 0;
         room.last_buyer = Pubkey::default();
         room.timestamp = now;
 
@@ -208,13 +208,13 @@ pub mod atrax {
         Ok(())
     }
 
-    // Buyer pays fixed price to influence next piece; fee goes to dev as per Config.fee_bps
-    pub fn choose_piece(ctx: Context<ChoosePiece>, room_id: u32, piece_type: u8) -> Result<()> {
+    // Buyer pays fixed price to influence next item; fee goes to dev as per Config.fee_bps
+    pub fn choose_item(ctx: Context<ChooseItem>, room_id: u32, item_type: u8) -> Result<()> {
         require!(room_id < 100, AtraxError::InvalidRoomId);
-        require!(piece_type < 7, AtraxError::InvalidPieceType);
+        require!(item_type < 7, AtraxError::InvalidItemType);
         require_keys_eq!(ctx.accounts.dev_wallet.key(), ctx.accounts.config.dev_wallet, AtraxError::InvalidDevWallet);
 
-        let price = ctx.accounts.room_settings.piece_price;
+        let price = ctx.accounts.room_settings.item_price;
         require!(price > 0, AtraxError::InvalidAmount);
 
         let fee = price
@@ -243,10 +243,10 @@ pub mod atrax {
 
         // update room state
         let room = &mut ctx.accounts.room;
-        room.latest_chosen_piece = piece_type;
+        room.latest_chosen_item = item_type;
         room.last_buyer = ctx.accounts.buyer.key();
         room.timestamp = Clock::get()?.unix_timestamp;
-        emit!(PieceChosen { room_id, piece_type, buyer: room.last_buyer });
+        emit!(ItemChosen { room_id, item_type, buyer: room.last_buyer });
         Ok(())
     }
 }
@@ -279,11 +279,11 @@ impl LandAccount {
     pub const LEN: usize = 8 + 32 + 1 + 1;
 }
 
-// Room settings (piece price)
+// Room settings (item price)
 #[account]
 pub struct RoomSettings {
     pub admin: Pubkey,
-    pub piece_price: u64,
+    pub item_price: u64,
     pub bump: u8,
 }
 
@@ -297,7 +297,7 @@ pub struct Room {
     pub room_name: String,
     pub stream_url: String,
     pub player_wallet: Pubkey,
-    pub latest_chosen_piece: u8,
+    pub latest_chosen_item: u8,
     pub last_buyer: Pubkey,
     pub timestamp: i64,
 }
@@ -366,7 +366,7 @@ pub struct ClaimRoom<'info> {
 
 #[derive(Accounts)]
 #[instruction(room_id: u32)]
-pub struct ChoosePiece<'info> {
+pub struct ChooseItem<'info> {
     #[account(seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, Config>,
     #[account(seeds = [b"room_settings"], bump = room_settings.bump)]
@@ -531,9 +531,9 @@ pub struct RoomClaimed {
 }
 
 #[event]
-pub struct PieceChosen {
+pub struct ItemChosen {
     pub room_id: u32,
-    pub piece_type: u8,
+    pub item_type: u8,
     pub buyer: Pubkey,
 }
 
@@ -559,8 +559,8 @@ pub enum AtraxError {
     RoomNameTooLong,
     #[msg("Stream URL too long (max 200)")] 
     StreamUrlTooLong,
-    #[msg("Invalid piece type (0..6)")] 
-    InvalidPieceType,
+    #[msg("Invalid item type (0..6)")] 
+    InvalidItemType,
     #[msg("Room is not expired yet")] 
     RoomNotExpired,
     #[msg("Invalid streamer wallet for room")] 
