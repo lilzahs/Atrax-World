@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import dynamic from 'next/dynamic';
+const WalletMultiButton = dynamic(
+  async () => (await import('@solana/wallet-adapter-react-ui')).WalletMultiButton,
+  { ssr: false }
+);
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { claimProfit } from '../onchain/instructions';
 import { ATRAX_PROGRAM_ID, ATRAX_CONFIG_PDA, DEV_WALLET } from '../lib/config';
