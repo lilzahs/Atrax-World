@@ -181,7 +181,7 @@ pub mod atrax {
     // Claim a room id for a streamer with metadata; expires after 120 seconds
     pub fn claim_room(
         ctx: Context<ClaimRoom>,
-        room_id: u8,
+        room_id: u32,
         room_name: String,
         stream_url: String,
     ) -> Result<()> {
@@ -209,7 +209,7 @@ pub mod atrax {
     }
 
     // Buyer pays fixed price to influence next piece; fee goes to dev as per Config.fee_bps
-    pub fn choose_piece(ctx: Context<ChoosePiece>, room_id: u8, piece_type: u8) -> Result<()> {
+    pub fn choose_piece(ctx: Context<ChoosePiece>, room_id: u32, piece_type: u8) -> Result<()> {
         require!(room_id < 100, AtraxError::InvalidRoomId);
         require!(piece_type < 7, AtraxError::InvalidPieceType);
         require_keys_eq!(ctx.accounts.dev_wallet.key(), ctx.accounts.config.dev_wallet, AtraxError::InvalidDevWallet);
@@ -349,13 +349,13 @@ pub struct UpdateRoomSettings<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(room_id: u8)]
+#[instruction(room_id: u32)]
 pub struct ClaimRoom<'info> {
     #[account(
         init_if_needed,
         payer = streamer,
         space = 8 + Room::LEN,
-        seeds = [b"room", &[room_id]],
+        seeds = [b"room", room_id.to_le_bytes().as_ref()],
         bump
     )]
     pub room: Account<'info, Room>,
@@ -365,7 +365,7 @@ pub struct ClaimRoom<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(room_id: u8)]
+#[instruction(room_id: u32)]
 pub struct ChoosePiece<'info> {
     #[account(seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, Config>,
@@ -373,7 +373,7 @@ pub struct ChoosePiece<'info> {
     pub room_settings: Account<'info, RoomSettings>,
     #[account(
         mut,
-        seeds = [b"room", &[room_id]],
+        seeds = [b"room", room_id.to_le_bytes().as_ref()],
         bump,
         constraint = room.player_wallet == streamer.key() @ AtraxError::InvalidStreamer
     )]
@@ -526,13 +526,13 @@ pub struct AdminUpdated {
 
 #[event]
 pub struct RoomClaimed {
-    pub room_id: u8,
+    pub room_id: u32,
     pub streamer: Pubkey,
 }
 
 #[event]
 pub struct PieceChosen {
-    pub room_id: u8,
+    pub room_id: u32,
     pub piece_type: u8,
     pub buyer: Pubkey,
 }
