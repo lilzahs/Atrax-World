@@ -81,10 +81,11 @@ export async function initializeRoomSettings({ connection, wallet, itemPriceLamp
   const { program } = await getProgramAndProvider(connection, wallet, programId, idl);
 
   const [roomSettingsPda] = PublicKey.findProgramAddressSync([teBytes('room_settings')], program.programId);
+  const [configPda] = PublicKey.findProgramAddressSync([teBytes('config')], program.programId);
   const m = getMethod(program, 'initialize_room_settings', 'initializeRoomSettings');
   const price = new BN(itemPriceLamports);
   return await m(price)
-    .accounts({ roomSettings: roomSettingsPda, admin: wallet.publicKey, systemProgram: SystemProgram.programId })
+    .accounts({ roomSettings: roomSettingsPda, config: configPda, dev: wallet.publicKey, systemProgram: SystemProgram.programId })
     .rpc();
 }
 
@@ -95,9 +96,10 @@ export async function updateRoomSettings({ connection, wallet, itemPriceLamports
   const { program } = await getProgramAndProvider(connection, wallet, programId, idl);
 
   const [roomSettingsPda] = PublicKey.findProgramAddressSync([teBytes('room_settings')], program.programId);
+  const [configPda] = PublicKey.findProgramAddressSync([teBytes('config')], program.programId);
   const m = getMethod(program, 'update_room_settings', 'updateRoomSettings');
   const price = new BN(itemPriceLamports);
-  return await m(price).accounts({ roomSettings: roomSettingsPda, admin: wallet.publicKey }).rpc();
+  return await m(price).accounts({ roomSettings: roomSettingsPda, config: configPda, dev: wallet.publicKey }).rpc();
 }
 
 export async function claimRoom({ connection, wallet, programId, roomId, roomName, streamUrl, idl }) {

@@ -15,11 +15,18 @@ export async function fetchConfig(connection) {
   if (!ai) return null;
   const data = new Uint8Array(ai.data);
   const off = 8; // anchor account discriminator
-  const admin = new PublicKey(data.slice(off, off + 32));
-  const devWallet = new PublicKey(data.slice(off + 32, off + 64));
   const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  const feeBps = dv.getUint16(off + 64, true);
-  return { pda: configPda, admin, devWallet, feeBps };
+  // Backward compatibility: detect old layout (admin + dev + fee + bump)
+  const isOld = data.length >= off + 32 + 32 + 2 + 1;
+  let devWallet, feeBps;
+  if (isOld) {
+    devWallet = new PublicKey(data.slice(off + 32, off + 64));
+    feeBps = dv.getUint16(off + 64, true);
+  } else {
+    devWallet = new PublicKey(data.slice(off, off + 32));
+    feeBps = dv.getUint16(off + 32, true);
+  }
+  return { pda: configPda, devWallet, feeBps };
 }
 
 function getRoomSettingsPda(programIdStr) {
@@ -36,9 +43,14 @@ export async function fetchRoomSettings(connection, programIdStr = ATRAX_PROGRAM
   if (!ai) return null;
   const data = new Uint8Array(ai.data);
   const off = 8; // discriminator
-  const admin = new PublicKey(data.slice(off, off + 32));
   const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  // item_price: u64 LE, bump: u8 follows (we ignore bump)
-  const item = dv.getBigUint64(off + 32, true);
-  return { pda, admin, priceLamports: item.toString() };
+  // Backward compatibility with old layout that had admin: Pubkey first
+  const isOld = data.length >= off + 32 + 8 + 1;
+  let itemBig;
+  if (isOld) {
+    itemBig = dv.getBigUint64(off + 32, true);
+  } else {
+    itemBig = dv.getBigUint64(off + 0, true);
+  }
+  return { pda, priceLamports: itemBig.toString() };
 }

@@ -9,23 +9,25 @@ const BPS_DENOMINATOR: u64 = 10_000; // 100% = 10_000 bps
 pub mod atrax {
     use super::*;
 
-    // Initializes global config (admin, dev wallet, fee).
+    // Initializes global config (dev wallet authority, fee).
+    // The signer must equal the provided dev_wallet (dev is the sole authority).
     pub fn initialize(ctx: Context<Initialize>, dev_wallet: Pubkey, fee_bps: u16) -> Result<()> {
         require!(fee_bps as u64 <= BPS_DENOMINATOR, AtraxError::FeeTooHigh);
+        require_keys_eq!(ctx.accounts.dev.key(), dev_wallet, AtraxError::Unauthorized);
 
         let cfg = &mut ctx.accounts.config;
-        cfg.admin = ctx.accounts.admin.key();
         cfg.dev_wallet = dev_wallet;
         cfg.fee_bps = fee_bps;
         cfg.bump = ctx.bumps.config;
 
-        emit!(ConfigInitialized { admin: cfg.admin, dev_wallet, fee_bps });
+        emit!(ConfigInitialized { dev_wallet, fee_bps });
         Ok(())
     }
 
-    // Admin can update dev wallet and fee.
+    // Dev updates dev wallet and fee. Only current dev (config.dev_wallet) may call this.
     pub fn update_config(ctx: Context<UpdateConfig>, new_dev_wallet: Pubkey, new_fee_bps: u16) -> Result<()> {
         require!(new_fee_bps as u64 <= BPS_DENOMINATOR, AtraxError::FeeTooHigh);
+        require_keys_eq!(ctx.accounts.dev.key(), ctx.accounts.config.dev_wallet, AtraxError::Unauthorized);
         let cfg = &mut ctx.accounts.config;
         cfg.dev_wallet = new_dev_wallet;
         cfg.fee_bps = new_fee_bps;
@@ -33,7 +35,7 @@ pub mod atrax {
         Ok(())
     } 
 
-    // Viewer donates lamports: 90% (by fee) to streamer, fee to dev wallet.
+    // Viewer donates lamports: fee (bps) to dev wallet, rest to streamer.
     pub fn donate(ctx: Context<Donate>, amount: u64) -> Result<()> {
         require!(amount > 0, AtraxError::InvalidAmount);
         // Verify dev wallet matches config
@@ -86,7 +88,7 @@ pub mod atrax {
         Ok(())
     }
 
-    // Player-to-player trade: 90% to seller, 10% fee to dev.
+    // Player-to-player trade: split to seller and dev by fee.
     pub fn trade_item(ctx: Context<TradeItem>, _item_id: u16, amount: u64) -> Result<()> {
         require!(amount > 0, AtraxError::InvalidAmount);
         require_keys_eq!(ctx.accounts.dev_wallet.key(), ctx.accounts.config.dev_wallet, AtraxError::InvalidDevWallet);
@@ -150,29 +152,23 @@ pub mod atrax {
         Ok(())
     }
 
-    // Admin can update admin authority to a new pubkey.
-    pub fn update_admin(ctx: Context<UpdateAdmin>, new_admin: Pubkey) -> Result<()> {
-        let cfg = &mut ctx.accounts.config;
-        cfg.admin = new_admin;
-        emit!(AdminUpdated { new_admin });
-        Ok(())
-    }
-
     // =========================
     // Streaming Rooms (claim + choose item)
     // =========================
 
-    // Initialize room settings (item price) under separate PDA to avoid breaking Config.
+    // Initialize room settings (item price) under separate PDA.
+    // Authority: dev (config.dev_wallet) only.
     pub fn initialize_room_settings(ctx: Context<InitializeRoomSettings>, item_price: u64) -> Result<()> {
+        require_keys_eq!(ctx.accounts.dev.key(), ctx.accounts.config.dev_wallet, AtraxError::Unauthorized);
         let rs = &mut ctx.accounts.room_settings;
-        rs.admin = ctx.accounts.admin.key();
         rs.item_price = item_price;
         rs.bump = ctx.bumps.room_settings;
         Ok(())
     }
 
-    // Admin can update item price
+    // Dev can update item price
     pub fn update_room_settings(ctx: Context<UpdateRoomSettings>, new_item_price: u64) -> Result<()> {
+        require_keys_eq!(ctx.accounts.dev.key(), ctx.accounts.config.dev_wallet, AtraxError::Unauthorized);
         let rs = &mut ctx.accounts.room_settings;
         rs.item_price = new_item_price;
         Ok(())
@@ -257,14 +253,13 @@ pub mod atrax {
 
 #[account]
 pub struct Config {
-    pub admin: Pubkey,
     pub dev_wallet: Pubkey,
     pub fee_bps: u16,
     pub bump: u8,
 }
 
 impl Config {
-    pub const LEN: usize = 32 + 32 + 2 + 1;
+    pub const LEN: usize = 32 + 2 + 1;
 }
 
 #[account]
@@ -282,13 +277,12 @@ impl LandAccount {
 // Room settings (item price)
 #[account]
 pub struct RoomSettings {
-    pub admin: Pubkey,
     pub item_price: u64,
     pub bump: u8,
 }
 
 impl RoomSettings {
-    pub const LEN: usize = 32 + 8 + 1;
+    pub const LEN: usize = 8 + 1;
 }
 
 // Streaming room state
@@ -315,14 +309,14 @@ impl Room {
 pub struct Initialize<'info> {
     #[account(
         init,
-        payer = admin,
+        payer = dev,
         space = 8 + Config::LEN,
         seeds = [b"config"],
         bump
     )]
     pub config: Account<'info, Config>,
     #[account(mut)]
-    pub admin: Signer<'info>,
+    pub dev: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -330,22 +324,26 @@ pub struct Initialize<'info> {
 pub struct InitializeRoomSettings<'info> {
     #[account(
         init,
-        payer = admin,
+        payer = dev,
         space = 8 + RoomSettings::LEN,
         seeds = [b"room_settings"],
         bump
     )]
     pub room_settings: Account<'info, RoomSettings>,
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, Config>,
     #[account(mut)]
-    pub admin: Signer<'info>,
+    pub dev: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 pub struct UpdateRoomSettings<'info> {
-    #[account(mut, seeds = [b"room_settings"], bump = room_settings.bump, has_one = admin)]
+    #[account(mut, seeds = [b"room_settings"], bump = room_settings.bump)]
     pub room_settings: Account<'info, RoomSettings>,
-    pub admin: Signer<'info>,
+    #[account(seeds = [b"config"], bump = config.bump)]
+    pub config: Account<'info, Config>,
+    pub dev: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -391,9 +389,9 @@ pub struct ChooseItem<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateConfig<'info> {
-    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = admin)]
+    #[account(mut, seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, Config>,
-    pub admin: Signer<'info>,
+    pub dev: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -454,13 +452,6 @@ pub struct ClaimProfit<'info> {
 }
 
 #[derive(Accounts)]
-pub struct UpdateAdmin<'info> {
-    #[account(mut, seeds = [b"config"], bump = config.bump, has_one = admin)]
-    pub config: Account<'info, Config>,
-    pub admin: Signer<'info>,
-}
-
-#[derive(Accounts)]
 pub struct InitializeLand<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
@@ -481,7 +472,6 @@ pub struct InitializeLand<'info> {
 
 #[event]
 pub struct ConfigInitialized {
-    pub admin: Pubkey,
     pub dev_wallet: Pubkey,
     pub fee_bps: u16,
 }
@@ -517,11 +507,6 @@ pub struct TradeEvent {
 pub struct LandTransferEvent {
     pub land_id: u64,
     pub new_owner: Pubkey,
-}
-
-#[event]
-pub struct AdminUpdated {
-    pub new_admin: Pubkey,
 }
 
 #[event]
@@ -566,3 +551,4 @@ pub enum AtraxError {
     #[msg("Invalid streamer wallet for room")] 
     InvalidStreamer,
 }
+
