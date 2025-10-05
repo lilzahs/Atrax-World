@@ -5,9 +5,9 @@ const WalletMultiButton = dynamic(
   { ssr: false }
 );
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { claimProfit } from '../onchain/instructions';
+import { claimProfit, claimRoom } from '../onchain/instructions';
 import { ATRAX_PROGRAM_ID, ATRAX_CONFIG_PDA, DEV_WALLET } from '../lib/config';
-import { fetchConfig } from '../lib/onchain';
+import { fetchConfig, fetchRoom } from '../lib/onchain';
 
 export default function StreamerPage() {
   const { connection } = useConnection();
@@ -18,6 +18,12 @@ export default function StreamerPage() {
   const [feeInfo, setFeeInfo] = useState(null);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [viewerUrl, setViewerUrl] = useState('');
+  // Room state
+  const [roomId, setRoomId] = useState('0');
+  const [roomName, setRoomName] = useState('');
+  const [streamUrl, setStreamUrl] = useState('');
+  const [hasRoom, setHasRoom] = useState(false);
+  const [roomMsg, setRoomMsg] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -27,6 +33,39 @@ export default function StreamerPage() {
       } catch {}
     })();
   }, [connection]);
+
+  // Check if selected room belongs to this streamer
+  useEffect(() => {
+    (async () => {
+      try {
+        setHasRoom(false);
+        if (!connection || !wallet.publicKey) return;
+        const id = Number(roomId || 0) | 0;
+        const info = await fetchRoom(connection, ATRAX_PROGRAM_ID, id);
+        if (info && info.playerWallet?.toBase58() === wallet.publicKey.toBase58()) {
+          setHasRoom(true);
+        }
+      } catch {}
+    })();
+  }, [connection, wallet.publicKey, roomId]);
+
+  async function onClaimRoom() {
+    try {
+      setRoomMsg('');
+      if (!wallet?.publicKey) throw new Error('Wallet not connected');
+      if (!ATRAX_PROGRAM_ID) throw new Error('Set NEXT_PUBLIC_ATRAX_PROGRAM_ID');
+      const id = Number(roomId || 0) | 0;
+      const rn = (roomName || '').trim();
+      const su = (streamUrl || '').trim();
+      if (!rn) throw new Error('Room name is required');
+      if (!su) throw new Error('Stream URL is required');
+      const sig = await claimRoom({ connection, wallet, programId: ATRAX_PROGRAM_ID, roomId: id, roomName: rn, streamUrl: su });
+      setRoomMsg(`Claimed: ${sig}`);
+      setHasRoom(true);
+    } catch (e) {
+      setRoomMsg(e.message || String(e));
+    }
+  }
 
   function parseYouTubeId(v) {
     if (!v) return '';
@@ -47,13 +86,15 @@ export default function StreamerPage() {
     const id = parseYouTubeId(youtubeUrl.trim());
     if (!id || !wallet.publicKey) return '';
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    return `${origin}/viewer?video=${encodeURIComponent(id)}&streamer=${wallet.publicKey.toBase58()}`;
+    const rid = (roomId || '0').toString();
+    return `${origin}/viewer?video=${encodeURIComponent(id)}&streamer=${wallet.publicKey.toBase58()}&room=${encodeURIComponent(rid)}`;
   }
 
   const onClaim = async () => {
     try {
       setBusy(true);
       setResult('');
+      if (!hasRoom) throw new Error('Please claim a room first');
       if (!ATRAX_PROGRAM_ID) throw new Error('Set NEXT_PUBLIC_ATRAX_PROGRAM_ID or bundle IDL address');
       const lamports = Math.round(Number(amount || '0') * 1_000_000_000);
       const sig = await claimProfit({
@@ -83,13 +124,30 @@ export default function StreamerPage() {
       <div className="grid">
         <div className="card">
           <div className="card-header">
+            <h2 className="section-title">Claim Room</h2>
+          </div>
+          <div className="muted">Streamer cần claim phòng trước khi thao tác.</div>
+          <label>Room ID (0..99)</label>
+          <input value={roomId} onChange={(e)=> setRoomId(e.target.value)} placeholder="0" />
+          <label>Room name</label>
+          <input value={roomName} onChange={(e)=> setRoomName(e.target.value)} placeholder="My Stream Room" />
+          <label>Stream URL</label>
+          <input value={streamUrl} onChange={(e)=> setStreamUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
+          <div className="row" style={{ marginTop: 10 }}>
+            <button className="btn primary" onClick={onClaimRoom}>Claim</button>
+            {hasRoom ? <span className="muted">Đã có phòng</span> : <span className="muted">Chưa có phòng</span>}
+          </div>
+          {roomMsg && <div className="muted" style={{ marginTop: 8 }}>{roomMsg}</div>}
+        </div>
+        <div className="card">
+          <div className="card-header">
             <h2 className="section-title">Share Viewer Link</h2>
           </div>
           <label>YouTube URL or ID</label>
           <input value={youtubeUrl} onChange={(e)=> setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
           <div className="row" style={{ marginTop: 10 }}>
-            <button className="btn primary" onClick={()=> setViewerUrl(buildViewerUrl())}>Generate</button>
-            <button className="btn secondary" disabled={!viewerUrl} onClick={async ()=> { try { await navigator.clipboard.writeText(viewerUrl); setResult('Copied!'); } catch {} }}>Copy</button>
+            <button className="btn primary" disabled={!hasRoom} onClick={()=> setViewerUrl(buildViewerUrl())}>Generate</button>
+            <button className="btn secondary" disabled={!viewerUrl || !hasRoom} onClick={async ()=> { try { await navigator.clipboard.writeText(viewerUrl); setResult('Copied!'); } catch {} }}>Copy</button>
           </div>
           {viewerUrl && <div className="muted" style={{ marginTop: 8 }}><span className="mono">{viewerUrl}</span></div>}
           {feeInfo && <div className="muted" style={{ marginTop: 8 }}>On-chain fee: {feeInfo.feeBps} bps • Dev wallet: <span className="mono">{feeInfo.dev}</span></div>}

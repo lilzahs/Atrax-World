@@ -11,10 +11,11 @@ export default function ItemPicker({
   devWallet,
   programId,
   onSuccess,
+  defaultRoomId,
 }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
-  const [roomId, setRoomId] = useState('0');
+  const [roomId, setRoomId] = useState(defaultRoomId != null ? String(defaultRoomId) : '0');
   const [itemType, setItemType] = useState(0);
   const [priceLamports, setPriceLamports] = useState(null);
 
@@ -66,4 +67,6 @@ export default function ItemPicker({
     </div>
   );
 }
-
+  useEffect(() => {
+    if (defaultRoomId != null) setRoomId(String(defaultRoomId));
+  }, [defaultRoomId]);

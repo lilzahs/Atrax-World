@@ -180,6 +180,7 @@ export default function ViewerPage() {
             streamer={streamer}
             devWallet={devWallet}
             programId={ATRAX_PROGRAM_ID}
+            defaultRoomId={(router.query?.room || router.query?.r || '').toString() || undefined}
             onSuccess={(e) => setResult(`Choose item success: room ${e.roomId}, item ${e.itemType}`)}
           />
         </div>
