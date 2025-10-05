@@ -7,6 +7,7 @@ const WalletMultiButton = dynamic(
 );
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { donate, buyItem } from '../onchain/instructions';
+import ItemPicker from '../components/ItemPicker';
 import { ATRAX_PROGRAM_ID } from '../lib/config';
 import { fetchConfig } from '../lib/onchain';
 
@@ -164,6 +165,23 @@ export default function ViewerPage() {
           <div className="row" style={{ marginTop: 10 }}>
             <button className="btn secondary" disabled={busy} onClick={onBuy}>{busy ? 'Processing…' : 'Buy'}</button>
           </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <h2 className="section-title">Choose Item (Viewer → Streamer)</h2>
+          </div>
+          <div className="muted" style={{ marginBottom: 8 }}>
+            Pay fixed price from Room Settings, fee to dev wallet per config.
+          </div>
+          <ItemPicker
+            connection={connection}
+            wallet={wallet}
+            streamer={streamer}
+            devWallet={devWallet}
+            programId={ATRAX_PROGRAM_ID}
+            onSuccess={(e) => setResult(`Choose item success: room ${e.roomId}, item ${e.itemType}`)}
+          />
         </div>
       </div>
 
