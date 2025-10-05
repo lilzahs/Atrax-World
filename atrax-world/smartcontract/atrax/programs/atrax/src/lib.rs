@@ -3,7 +3,7 @@ use anchor_lang::system_program;
 
 declare_id!("35eYtQ3hgAqmDUtwcEQ6WFKfQri7figJGe9vR25mmMiC");
 
-const BPS_DENOMINATOR: u64 = 10_000; // 100% = 10_000 bps
+const BPS_DENOMINATOR: u64 = 6700; // 67% = 6700 bps
 
 #[program]
 pub mod atrax {
