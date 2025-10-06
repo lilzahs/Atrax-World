@@ -1,0 +1,10 @@
+/Users/doandothanhdanh/Desktop/zah project/Atrax-World/atrax-world/smart contract/atrax/target/release/deps/libthiserror-3d0302c754f6c397.rmeta: /Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/lib.rs /Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/aserror.rs /Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/display.rs /Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/provide.rs
+
+/Users/doandothanhdanh/Desktop/zah project/Atrax-World/atrax-world/smart contract/atrax/target/release/deps/libthiserror-3d0302c754f6c397.rlib: /Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/lib.rs /Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/aserror.rs /Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/display.rs /Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/provide.rs
+
+/Users/doandothanhdanh/Desktop/zah project/Atrax-World/atrax-world/smart contract/atrax/target/release/deps/thiserror-3d0302c754f6c397.d: /Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/lib.rs /Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/aserror.rs /Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/display.rs /Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/provide.rs
+
+/Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/lib.rs:
+/Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/aserror.rs:
+/Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/display.rs:
+/Users/doandothanhdanh/.cargo/registry/src/index.crates.io-6f17d22bba15001f/thiserror-1.0.69/src/provide.rs:

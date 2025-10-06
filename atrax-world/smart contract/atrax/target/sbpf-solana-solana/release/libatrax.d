@@ -1,0 +1,1 @@
+/Users/doandothanhdanh/Desktop/zah\ project/Atrax-World/atrax-world/smart\ contract/atrax/target/sbpf-solana-solana/release/libatrax.rlib: /Users/doandothanhdanh/Desktop/zah\ project/Atrax-World/atrax-world/smart\ contract/atrax/programs/atrax/src/lib.rs
