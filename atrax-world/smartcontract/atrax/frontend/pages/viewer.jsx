@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
 import dynamic from 'next/dynamic';
 const WalletMultiButton = dynamic(
@@ -60,7 +60,7 @@ export default function ViewerPage() {
           setFeeBps(cfg.feeBps);
         }
       } catch (e) {
-        // leave as-is; page can still function if user sets envs later
+        // ignore
       }
     })();
   }, [connection]);
@@ -78,7 +78,6 @@ export default function ViewerPage() {
         streamer,
         lamports,
         programId: ATRAX_PROGRAM_ID,
-        // derive config PDA inside the instruction by idl/program context; pass dev wallet from on-chain
         configPda: undefined,
         devWallet: devWallet,
       });
@@ -118,7 +117,7 @@ export default function ViewerPage() {
     <div className="container">
       <header className="header">
         <div className="brand">
-          <div className="brand-badge">▶</div>
+          <div className="brand-badge">🎥</div>
           <div className="brand-title">Viewer Panel</div>
         </div>
         <WalletMultiButton />
@@ -147,7 +146,7 @@ export default function ViewerPage() {
           <label>Amount (SOL)</label>
           <input value={donation} onChange={(e) => setDonation(e.target.value)} placeholder="0.1" />
           <div className="row" style={{ marginTop: 10 }}>
-            <button className="btn primary" disabled={busy} onClick={onDonate}>{busy ? 'Processing…' : 'Donate'}</button>
+            <button className="btn primary" disabled={busy} onClick={onDonate}>{busy ? 'Processing...' : 'Donate'}</button>
           </div>
           {feeBps !== null && (
             <div className="muted" style={{ marginTop: 8 }}>Fee: {feeBps} bps • Dev wallet: <span className="mono">{devWallet}</span></div>
@@ -163,16 +162,16 @@ export default function ViewerPage() {
           <label>Amount (SOL)</label>
           <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.05" />
           <div className="row" style={{ marginTop: 10 }}>
-            <button className="btn secondary" disabled={busy} onClick={onBuy}>{busy ? 'Processing…' : 'Buy'}</button>
+            <button className="btn secondary" disabled={busy} onClick={onBuy}>{busy ? 'Processing...' : 'Buy'}</button>
           </div>
         </div>
 
         <div className="card">
           <div className="card-header">
-            <h2 className="section-title">Choose Item (Viewer → Streamer)</h2>
+            <h2 className="section-title">Choose Item (Viewer + Streamer)</h2>
           </div>
           <div className="muted" style={{ marginBottom: 8 }}>
-            Pay fixed price from Room Settings, fee to dev wallet per config.
+            Pay fixed price from Room Settings; a fee goes to the dev wallet per config.
           </div>
           <ItemPicker
             connection={connection}
@@ -180,8 +179,7 @@ export default function ViewerPage() {
             streamer={streamer}
             devWallet={devWallet}
             programId={ATRAX_PROGRAM_ID}
-            defaultRoomId={(router.query?.room || router.query?.r || '').toString() || undefined}
-            onSuccess={(e) => setResult(`Choose item success: room ${e.roomId}, item ${e.itemType}`)}
+            onSuccess={(e) => setResult(`Choose item success: item ${e.itemType}`)}
           />
         </div>
       </div>

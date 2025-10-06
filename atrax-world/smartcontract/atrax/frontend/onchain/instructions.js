@@ -102,33 +102,33 @@ export async function updateRoomSettings({ connection, wallet, itemPriceLamports
   return await m(price).accounts({ roomSettings: roomSettingsPda, config: configPda, dev: wallet.publicKey }).rpc();
 }
 
-export async function claimRoom({ connection, wallet, programId, roomId, roomName, streamUrl, idl }) {
+export async function claimRoom({ connection, wallet, programId, roomName, streamUrl, idl }) {
   if (!wallet?.publicKey) throw new Error('Wallet not connected');
   const { PublicKey, SystemProgram } = await import('@solana/web3.js');
   const { program } = await getProgramAndProvider(connection, wallet, programId, idl);
 
-  const [roomPda] = PublicKey.findProgramAddressSync([teBytes('room'), u32LeBytes(roomId)], program.programId);
+  const [roomPda] = PublicKey.findProgramAddressSync([teBytes('room'), wallet.publicKey.toBytes()], program.programId);
   const m = getMethod(program, 'claim_room', 'claimRoom');
-  return await m(roomId, roomName, streamUrl)
+  return await m(roomName, streamUrl)
     .accounts({ room: roomPda, streamer: wallet.publicKey, systemProgram: SystemProgram.programId })
     .rpc();
 }
 
-export async function chooseItem({ connection, wallet, programId, roomId, itemType, streamer, devWallet, idl }) {
+export async function chooseItem({ connection, wallet, programId, itemType, streamer, devWallet, idl }) {
   if (!wallet?.publicKey) throw new Error('Wallet not connected');
   const { PublicKey, SystemProgram } = await import('@solana/web3.js');
   const { program } = await getProgramAndProvider(connection, wallet, programId, idl);
 
   const [configPda] = PublicKey.findProgramAddressSync([teBytes('config')], program.programId);
   const [roomSettingsPda] = PublicKey.findProgramAddressSync([teBytes('room_settings')], program.programId);
-  const [roomPda] = PublicKey.findProgramAddressSync([teBytes('room'), u32LeBytes(roomId)], program.programId);
+  const streamerPk = new PublicKey(streamer);
+  const [roomPda] = PublicKey.findProgramAddressSync([teBytes('room'), streamerPk.toBytes()], program.programId);
 
   const buyer = wallet.publicKey;
-  const streamerPk = new PublicKey(streamer);
   const devPk = new PublicKey(devWallet);
 
   const m = getMethod(program, 'choose_item', 'chooseItem');
-  return await m(roomId, itemType)
+  return await m(itemType)
     .accounts({
       config: configPda,
       roomSettings: roomSettingsPda,

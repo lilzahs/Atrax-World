@@ -119,8 +119,8 @@
                 ]
               },
               {
-                "kind": "arg",
-                "path": "room_id"
+                "kind": "account",
+                "path": "streamer"
               }
             ]
           }
@@ -144,10 +144,6 @@
         }
       ],
       "args": [
-        {
-          "name": "room_id",
-          "type": "u32"
-        },
         {
           "name": "item_type",
           "type": "u8"
@@ -208,8 +204,8 @@
                 ]
               },
               {
-                "kind": "arg",
-                "path": "room_id"
+                "kind": "account",
+                "path": "streamer"
               }
             ]
           }
@@ -225,10 +221,6 @@
         }
       ],
       "args": [
-        {
-          "name": "room_id",
-          "type": "u32"
-        },
         {
           "name": "room_name",
           "type": "string"
@@ -870,31 +862,26 @@
     },
     {
       "code": 6007,
-      "name": "InvalidRoomId",
-      "msg": "Invalid room id"
-    },
-    {
-      "code": 6008,
       "name": "RoomNameTooLong",
       "msg": "Room name too long (max 50)"
     },
     {
-      "code": 6009,
+      "code": 6008,
       "name": "StreamUrlTooLong",
       "msg": "Stream URL too long (max 200)"
     },
     {
-      "code": 6010,
+      "code": 6009,
       "name": "InvalidItemType",
       "msg": "Invalid item type (0..6)"
     },
     {
-      "code": 6011,
+      "code": 6010,
       "name": "RoomNotExpired",
       "msg": "Room is not expired yet"
     },
     {
-      "code": 6012,
+      "code": 6011,
       "name": "InvalidStreamer",
       "msg": "Invalid streamer wallet for room"
     }
@@ -981,10 +968,6 @@
       "type": {
         "kind": "struct",
         "fields": [
-          {
-            "name": "room_id",
-            "type": "u32"
-          },
           {
             "name": "item_type",
             "type": "u8"
@@ -1073,10 +1056,6 @@
       "type": {
         "kind": "struct",
         "fields": [
-          {
-            "name": "room_id",
-            "type": "u32"
-          },
           {
             "name": "streamer",
             "type": "pubkey"

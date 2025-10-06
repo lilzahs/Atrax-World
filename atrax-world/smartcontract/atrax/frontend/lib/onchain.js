@@ -54,3 +54,32 @@ export async function fetchRoomSettings(connection, programIdStr = ATRAX_PROGRAM
   }
   return { pda, priceLamports: itemBig.toString() };
 }
+
+// Room PDA: seed by streamer pubkey
+export function getRoomPda(programIdStr = ATRAX_PROGRAM_ID, streamerPubkey) {
+  if (!programIdStr) throw new Error('Program ID is not set');
+  const programId = new PublicKey(programIdStr);
+  const seedA = typeof TextEncoder !== 'undefined' ? new TextEncoder().encode('room') : Buffer.from('room');
+  const spk = new PublicKey(streamerPubkey);
+  const [pda] = PublicKey.findProgramAddressSync([seedA, spk.toBytes()], programId);
+  return pda;
+}
+
+export async function fetchRoom(connection, programIdStr = ATRAX_PROGRAM_ID, streamerPubkey) {
+  const pda = getRoomPda(programIdStr, streamerPubkey);
+  const ai = await connection.getAccountInfo(pda);
+  if (!ai) return null;
+  const data = new Uint8Array(ai.data);
+  const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  let off = 8; // discriminator
+  // room_name: String
+  const nameLen = dv.getUint32(off, true); off += 4 + nameLen;
+  // stream_url: String
+  const urlLen = dv.getUint32(off, true); off += 4 + urlLen;
+  // player_wallet
+  const playerWallet = new PublicKey(data.slice(off, off + 32)); off += 32;
+  const latestChosenItem = data[off]; off += 1;
+  const lastBuyer = new PublicKey(data.slice(off, off + 32)); off += 32;
+  const ts = dv.getBigInt64(off, true);
+  return { pda, playerWallet, latestChosenItem, lastBuyer, timestamp: Number(ts) };
+}
