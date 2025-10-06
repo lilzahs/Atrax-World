@@ -73,13 +73,21 @@ export async function fetchRoom(connection, programIdStr = ATRAX_PROGRAM_ID, str
   const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
   let off = 8; // discriminator
   // room_name: String
-  const nameLen = dv.getUint32(off, true); off += 4 + nameLen;
+  const nameLen = dv.getUint32(off, true);
+  const nameStart = off + 4;
+  const nameEnd = nameStart + nameLen;
+  const roomName = (typeof TextDecoder !== 'undefined') ? new TextDecoder().decode(data.slice(nameStart, nameEnd)) : '';
+  off = nameEnd;
   // stream_url: String
-  const urlLen = dv.getUint32(off, true); off += 4 + urlLen;
+  const urlLen = dv.getUint32(off, true);
+  const urlStart = off + 4;
+  const urlEnd = urlStart + urlLen;
+  const streamUrl = (typeof TextDecoder !== 'undefined') ? new TextDecoder().decode(data.slice(urlStart, urlEnd)) : '';
+  off = urlEnd;
   // player_wallet
   const playerWallet = new PublicKey(data.slice(off, off + 32)); off += 32;
   const latestChosenItem = data[off]; off += 1;
   const lastBuyer = new PublicKey(data.slice(off, off + 32)); off += 32;
   const ts = dv.getBigInt64(off, true);
-  return { pda, playerWallet, latestChosenItem, lastBuyer, timestamp: Number(ts) };
+  return { pda, roomName, streamUrl, playerWallet, latestChosenItem, lastBuyer, timestamp: Number(ts) };
 }

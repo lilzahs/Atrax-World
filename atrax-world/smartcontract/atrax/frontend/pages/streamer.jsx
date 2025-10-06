@@ -21,6 +21,7 @@ export default function StreamerPage() {
   const [streamUrl, setStreamUrl] = useState('');
   const [hasRoom, setHasRoom] = useState(false);
   const [roomMsg, setRoomMsg] = useState('');
+  const [roomInfo, setRoomInfo] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -37,7 +38,12 @@ export default function StreamerPage() {
         setHasRoom(false);
         if (!connection || !wallet.publicKey) return;
         const info = await fetchRoom(connection, ATRAX_PROGRAM_ID, wallet.publicKey.toBase58());
-        if (info && info.playerWallet?.toBase58() === wallet.publicKey.toBase58()) setHasRoom(true);
+        if (info && info.playerWallet?.toBase58() === wallet.publicKey.toBase58()) {
+          setHasRoom(true);
+          setRoomInfo(info);
+        } else {
+          setRoomInfo(null);
+        }
       } catch {}
     })();
   }, [connection, wallet.publicKey]);
@@ -72,6 +78,11 @@ export default function StreamerPage() {
       const id = parseYouTubeId(su);
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       if (id && wallet.publicKey && origin) setViewerUrl(`${origin}/viewer?video=${encodeURIComponent(id)}&streamer=${wallet.publicKey.toBase58()}`);
+      // refresh room panel
+      try {
+        const info = await fetchRoom(connection, ATRAX_PROGRAM_ID, wallet.publicKey.toBase58());
+        if (info) setRoomInfo(info);
+      } catch {}
     } catch (e) {
       setRoomMsg(e.message || String(e));
     }
@@ -103,30 +114,87 @@ export default function StreamerPage() {
         <WalletMultiButton />
       </header>
 
-      {/* Start Streaming - main centered card */}
-      <div className="card" style={{ maxWidth: 720, margin: '0 auto 16px' }}>
-        <div className="card-header">
-          <h2 className="section-title">Start Streaming</h2>
-        </div>
-        <div className="muted">Set up your on-chain stream room and generate a viewer link.</div>
-        <label>Room Name</label>
-        <input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder="My Stream Room" />
-        <label>Stream URL (YouTube)</label>
-        <input value={streamUrl} onChange={(e) => setStreamUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
-        <div className="row" style={{ marginTop: 10 }}>
-          <button className="btn primary" onClick={onClaimRoom}>Start</button>
-          {hasRoom ? <span className="muted">Room active</span> : <span className="muted">No room yet</span>}
-        </div>
-        {roomMsg && <div className="muted" style={{ marginTop: 8 }}>{roomMsg}</div>}
-        {viewerUrl && (
-          <div className="muted" style={{ marginTop: 8 }}>
-            Viewer link: <span className="mono">{viewerUrl}</span>
-            <div className="row" style={{ marginTop: 8 }}>
-              <button className="btn secondary" onClick={async () => { try { await navigator.clipboard.writeText(viewerUrl); setResult('Copied!'); } catch {} }}>Copy</button>
-            </div>
+      {/* Start Streaming + Room Info row */}
+      <div className="equal-grid">
+        <div className="card">
+          <div className="card-header">
+            <h2 className="section-title">Start Streaming</h2>
           </div>
-        )}
-        {feeInfo && <div className="muted" style={{ marginTop: 8 }}>On-chain fee: {feeInfo.feeBps} bps • Dev wallet: <span className="mono">{feeInfo.dev}</span></div>}
+          <div className="muted">Set up your on-chain stream room and generate a viewer link.</div>
+          <label>Room Name</label>
+          <input value={roomName} onChange={(e) => setRoomName(e.target.value)} placeholder="My Stream Room" />
+          <label>Stream URL (YouTube)</label>
+          <input value={streamUrl} onChange={(e) => setStreamUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
+          <div className="row" style={{ marginTop: 10 }}>
+            <button className="btn primary" onClick={onClaimRoom}>Start</button>
+            {hasRoom ? <span className="muted">Room active</span> : <span className="muted">No room yet</span>}
+          </div>
+          {roomMsg && <div className="muted" style={{ marginTop: 8 }}>{roomMsg}</div>}
+          {viewerUrl && (
+            <div className="muted" style={{ marginTop: 8 }}>
+              Viewer link: <span className="mono">{viewerUrl}</span>
+              <div className="row" style={{ marginTop: 8 }}>
+                <button className="btn secondary" onClick={async () => { try { await navigator.clipboard.writeText(viewerUrl); setResult('Copied!'); } catch {} }}>Copy</button>
+              </div>
+            </div>
+          )}
+          {feeInfo && <div className="muted" style={{ marginTop: 8 }}>On-chain fee: {feeInfo.feeBps} bps • Dev wallet: <span className="mono">{feeInfo.dev}</span></div>}
+        </div>
+
+        <div className="card" style={hasRoom ? {} : { filter: 'blur(2px)', opacity: 0.7 }}>
+          <div className="card-header">
+            <h2 className="section-title">Room Info</h2>
+          </div>
+          {roomInfo ? (
+            <>
+              <div className="muted">Live metadata for your current room.</div>
+              <label>Room Name</label>
+              <input readOnly value={roomInfo.roomName || ''} />
+              <div className="row" style={{ gap: 8, marginTop: 8 }}>
+                <button
+                  className="btn secondary"
+                  onClick={() => {
+                    try {
+                      const raw = roomInfo.streamUrl || '';
+                      const id = parseYouTubeId(raw);
+                      const url = /^https?:/i.test(raw) ? raw : (id ? `https://www.youtube.com/watch?v=${id}` : '');
+                      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                    } catch {}
+                  }}
+                >
+                  Open Livestream
+                </button>
+                <button
+                  className="btn secondary"
+                  onClick={async () => {
+                    try {
+                      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                      const id = parseYouTubeId(roomInfo.streamUrl || '');
+                      const link = (origin && id && wallet.publicKey)
+                        ? `${origin}/viewer?video=${encodeURIComponent(id)}&streamer=${wallet.publicKey.toBase58()}`
+                        : '';
+                      if (link) {
+                        await navigator.clipboard.writeText(link);
+                        setResult('Copied!');
+                      }
+                    } catch {}
+                  }}
+                >
+                  Copy Viewer Link
+                </button>
+              </div>
+              <div className="row" style={{ gap: 8, marginTop: 8 }}>
+                <div className="muted">Latest item: <span className="mono">{roomInfo.latestChosenItem ?? '-'}</span></div>
+                <div className="muted">Last buyer: <span className="mono">{roomInfo.lastBuyer?.toBase58 ? roomInfo.lastBuyer.toBase58() : '-'}</span></div>
+              </div>
+              <div className="muted" style={{ marginTop: 8 }}>
+                Updated at: {roomInfo.timestamp ? new Date(roomInfo.timestamp * 1000).toLocaleString() : '-'}
+              </div>
+            </>
+          ) : (
+            <div className="muted">No room yet. Start streaming to create your room.</div>
+          )}
+        </div>
       </div>
 
       <div className="grid">
@@ -144,3 +212,4 @@ export default function StreamerPage() {
     </div>
   );
 }
+
