@@ -3,7 +3,7 @@ use anchor_lang::system_program;
 
 declare_id!("35eYtQ3hgAqmDUtwcEQ6WFKfQri7figJGe9vR25mmMiC");
 
-const BPS_DENOMINATOR: u64 = 6700; // 67% = 6700 bps
+const BPS_DENOMINATOR: u64 = 10000;
 
 #[program]
 pub mod atrax {
@@ -174,14 +174,12 @@ pub mod atrax {
         Ok(())
     }
 
-    // Claim a room id for a streamer with metadata; expires after 120 seconds
+    // Claim a room bound to the streamer pubkey; expires (cooldown) after 120 seconds
     pub fn claim_room(
         ctx: Context<ClaimRoom>,
-        room_id: u32,
         room_name: String,
         stream_url: String,
     ) -> Result<()> {
-        require!(room_id < 100, AtraxError::InvalidRoomId); // allow 0..99
         require!(room_name.len() <= 50, AtraxError::RoomNameTooLong);
         require!(stream_url.len() <= 200, AtraxError::StreamUrlTooLong);
 
@@ -200,13 +198,12 @@ pub mod atrax {
         room.last_buyer = Pubkey::default();
         room.timestamp = now;
 
-        emit!(RoomClaimed { room_id, streamer: room.player_wallet });
+        emit!(RoomClaimed { streamer: room.player_wallet });
         Ok(())
     }
 
     // Buyer pays fixed price to influence next item; fee goes to dev as per Config.fee_bps
-    pub fn choose_item(ctx: Context<ChooseItem>, room_id: u32, item_type: u8) -> Result<()> {
-        require!(room_id < 100, AtraxError::InvalidRoomId);
+    pub fn choose_item(ctx: Context<ChooseItem>, item_type: u8) -> Result<()> {
         require!(item_type < 7, AtraxError::InvalidItemType);
         require_keys_eq!(ctx.accounts.dev_wallet.key(), ctx.accounts.config.dev_wallet, AtraxError::InvalidDevWallet);
 
@@ -242,7 +239,7 @@ pub mod atrax {
         room.latest_chosen_item = item_type;
         room.last_buyer = ctx.accounts.buyer.key();
         room.timestamp = Clock::get()?.unix_timestamp;
-        emit!(ItemChosen { room_id, item_type, buyer: room.last_buyer });
+        emit!(ItemChosen { item_type, buyer: room.last_buyer });
         Ok(())
     }
 }
@@ -347,13 +344,12 @@ pub struct UpdateRoomSettings<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(room_id: u32)]
 pub struct ClaimRoom<'info> {
     #[account(
         init_if_needed,
         payer = streamer,
         space = 8 + Room::LEN,
-        seeds = [b"room", room_id.to_le_bytes().as_ref()],
+        seeds = [b"room", streamer.key().as_ref()],
         bump
     )]
     pub room: Account<'info, Room>,
@@ -363,7 +359,6 @@ pub struct ClaimRoom<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(room_id: u32)]
 pub struct ChooseItem<'info> {
     #[account(seeds = [b"config"], bump = config.bump)]
     pub config: Account<'info, Config>,
@@ -371,7 +366,7 @@ pub struct ChooseItem<'info> {
     pub room_settings: Account<'info, RoomSettings>,
     #[account(
         mut,
-        seeds = [b"room", room_id.to_le_bytes().as_ref()],
+        seeds = [b"room", streamer.key().as_ref()],
         bump,
         constraint = room.player_wallet == streamer.key() @ AtraxError::InvalidStreamer
     )]
@@ -511,13 +506,11 @@ pub struct LandTransferEvent {
 
 #[event]
 pub struct RoomClaimed {
-    pub room_id: u32,
     pub streamer: Pubkey,
 }
 
 #[event]
 pub struct ItemChosen {
-    pub room_id: u32,
     pub item_type: u8,
     pub buyer: Pubkey,
 }
@@ -538,8 +531,6 @@ pub enum AtraxError {
     LandNotInitialized,
     #[msg("Provided land id does not match record")] 
     InvalidLandId,
-    #[msg("Invalid room id")] 
-    InvalidRoomId,
     #[msg("Room name too long (max 50)")] 
     RoomNameTooLong,
     #[msg("Stream URL too long (max 200)")] 
@@ -551,4 +542,3 @@ pub enum AtraxError {
     #[msg("Invalid streamer wallet for room")] 
     InvalidStreamer,
 }
-
