@@ -1,19 +1,24 @@
 import { type PublicKey, TransactionInstruction, SystemProgram } from "@solana/web3.js"
 
-// Instruction discriminators (example - adjust based on your program)
-enum InstructionType {
-  ClaimRoom = 0,
-  Donate = 1,
-  ChooseItem = 2,
-  ClaimProfit = 3,
-  InitializeRoomSettings = 4,
-  UpdateRoomSettings = 5,
+// Anchor 8-byte discriminators (from IDL)
+const IX = {
+  claim_room: Buffer.from([62, 51, 97, 121, 144, 160, 43, 85]),
+  donate: Buffer.from([121, 186, 218, 211, 73, 70, 196, 180]),
+  choose_item: Buffer.from([204, 165, 157, 164, 222, 105, 194, 57]),
+  claim_profit: Buffer.from([234, 73, 53, 22, 182, 46, 83, 104]),
+  initialize_room_settings: Buffer.from([238, 66, 98, 15, 39, 151, 11, 230]),
+  update_room_settings: Buffer.from([251, 172, 220, 119, 59, 238, 106, 191]),
+} as const
+
+function encodeString(s: string): Buffer {
+  const b = Buffer.from(s, "utf-8")
+  const out = Buffer.alloc(4 + b.length)
+  out.writeUInt32LE(b.length, 0)
+  b.copy(out, 4)
+  return out
 }
 
-/**
- * Creates a claim_room instruction
- * Updated to include room_name and stream_url parameters
- */
+/** claim_room(room_name: string, stream_url: string) */
 export function createClaimRoomInstruction(
   programId: PublicKey,
   streamer: PublicKey,
@@ -21,33 +26,11 @@ export function createClaimRoomInstruction(
   roomName: string,
   streamUrl: string,
 ): TransactionInstruction {
-  // Encode strings as UTF-8 with length prefix
-  const roomNameBytes = Buffer.from(roomName, "utf-8")
-  const streamUrlBytes = Buffer.from(streamUrl, "utf-8")
-
-  // Calculate total data size: discriminator (1) + room_name_len (4) + room_name + stream_url_len (4) + stream_url
-  const data = Buffer.alloc(1 + 4 + roomNameBytes.length + 4 + streamUrlBytes.length)
-  let offset = 0
-
-  // Write discriminator
-  data.writeUInt8(InstructionType.ClaimRoom, offset)
-  offset += 1
-
-  // Write room_name length and bytes
-  data.writeUInt32LE(roomNameBytes.length, offset)
-  offset += 4
-  roomNameBytes.copy(data, offset)
-  offset += roomNameBytes.length
-
-  // Write stream_url length and bytes
-  data.writeUInt32LE(streamUrlBytes.length, offset)
-  offset += 4
-  streamUrlBytes.copy(data, offset)
-
+  const data = Buffer.concat([IX.claim_room, encodeString(roomName), encodeString(streamUrl)])
   return new TransactionInstruction({
     keys: [
-      { pubkey: streamer, isSigner: true, isWritable: true },
       { pubkey: roomPDA, isSigner: false, isWritable: true },
+      { pubkey: streamer, isSigner: true, isWritable: true },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
     programId,
@@ -55,22 +38,18 @@ export function createClaimRoomInstruction(
   })
 }
 
-/**
- * Creates a donate instruction
- * Updated to match on-chain donate instruction (requires config, dev_wallet)
- */
+/** donate(amount: u64) */
 export function createDonateInstruction(
   programId: PublicKey,
   donor: PublicKey,
   streamer: PublicKey,
   devWallet: PublicKey,
   configPDA: PublicKey,
-  amount: number,
+  amountLamports: number,
 ): TransactionInstruction {
-  const data = Buffer.alloc(9)
-  data.writeUInt8(InstructionType.Donate, 0)
-  data.writeBigUInt64LE(BigInt(amount), 1)
-
+  const amt = Buffer.alloc(8)
+  amt.writeBigUInt64LE(BigInt(amountLamports), 0)
+  const data = Buffer.concat([IX.donate, amt])
   return new TransactionInstruction({
     keys: [
       { pubkey: donor, isSigner: true, isWritable: true },
@@ -84,10 +63,7 @@ export function createDonateInstruction(
   })
 }
 
-/**
- * Creates a choose_item instruction
- * Updated to match on-chain choose_item (requires config, room_settings, dev_wallet, streamer)
- */
+/** choose_item(item_type: u8) */
 export function createChooseItemInstruction(
   programId: PublicKey,
   buyer: PublicKey,
@@ -98,10 +74,8 @@ export function createChooseItemInstruction(
   roomPDA: PublicKey,
   itemType: number,
 ): TransactionInstruction {
-  const data = Buffer.alloc(2)
-  data.writeUInt8(InstructionType.ChooseItem, 0)
-  data.writeUInt8(itemType, 1)
-
+  const t = Buffer.from([itemType & 0xff])
+  const data = Buffer.concat([IX.choose_item, t])
   return new TransactionInstruction({
     keys: [
       { pubkey: configPDA, isSigner: false, isWritable: false },
@@ -117,21 +91,63 @@ export function createChooseItemInstruction(
   })
 }
 
-/**
- * Creates a claim_profit instruction
- */
+/** claim_profit(_amount: u64) placeholder */
 export function createClaimProfitInstruction(
   programId: PublicKey,
-  streamer: PublicKey,
-  roomPDA: PublicKey,
+  claimer: PublicKey,
+  amountLamports: number,
 ): TransactionInstruction {
-  const data = Buffer.from([InstructionType.ClaimProfit])
-
+  const amt = Buffer.alloc(8)
+  amt.writeBigUInt64LE(BigInt(amountLamports), 0)
+  const data = Buffer.concat([IX.claim_profit, amt])
   return new TransactionInstruction({
     keys: [
-      { pubkey: streamer, isSigner: true, isWritable: true },
-      { pubkey: roomPDA, isSigner: false, isWritable: true },
+      { pubkey: claimer, isSigner: true, isWritable: true },
+    ],
+    programId,
+    data,
+  })
+}
+
+/** initialize_room_settings(item_price: u64) */
+export function createInitializeRoomSettingsInstruction(
+  programId: PublicKey,
+  dev: PublicKey,
+  roomSettingsPDA: PublicKey,
+  configPDA: PublicKey,
+  itemPriceLamports: number,
+): TransactionInstruction {
+  const price = Buffer.alloc(8)
+  price.writeBigUInt64LE(BigInt(itemPriceLamports), 0)
+  const data = Buffer.concat([IX.initialize_room_settings, price])
+  return new TransactionInstruction({
+    keys: [
+      { pubkey: roomSettingsPDA, isSigner: false, isWritable: true },
+      { pubkey: configPDA, isSigner: false, isWritable: false },
+      { pubkey: dev, isSigner: true, isWritable: true },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    programId,
+    data,
+  })
+}
+
+/** update_room_settings(new_item_price: u64) */
+export function createUpdateRoomSettingsInstruction(
+  programId: PublicKey,
+  dev: PublicKey,
+  roomSettingsPDA: PublicKey,
+  configPDA: PublicKey,
+  newItemPriceLamports: number,
+): TransactionInstruction {
+  const price = Buffer.alloc(8)
+  price.writeBigUInt64LE(BigInt(newItemPriceLamports), 0)
+  const data = Buffer.concat([IX.update_room_settings, price])
+  return new TransactionInstruction({
+    keys: [
+      { pubkey: roomSettingsPDA, isSigner: false, isWritable: true },
+      { pubkey: configPDA, isSigner: false, isWritable: false },
+      { pubkey: dev, isSigner: true, isWritable: true },
     ],
     programId,
     data,
