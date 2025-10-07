@@ -11,17 +11,17 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="card" style={{ marginBottom: 12 }}>
+      <div className="card" style={{ marginBottom: 18 }}>
         <h2 className="section-title">Welcome, Streamers!</h2>
         <p className="muted">
           Plug your YouTube stream into an on-chain experience: accept donations, sell items, and let viewers influence gameplay.
         </p>
       </div>
 
-      <div className="grid">
-        <div className="card">
-          <div className="card-header"><h3 className="section-title">Quick Start</h3></div>
-          <ol className="muted" style={{ paddingLeft: 18, margin: 0 }}>
+      <div className="grid" style={{ alignItems: 'stretch' }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div className="card-header flush"><h3 className="section-title" style={{ margin: 0 }}>Quick Start</h3></div>
+          <ol className="muted" style={{ paddingLeft: 18, margin: 0, flex: 1 }}>
             <li>Connect your wallet on the Streamer page</li>
             <li>Start Streaming (room name + YouTube URL)</li>
             <li>Copy the auto-generated Viewer link</li>
@@ -32,9 +32,9 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-header"><h3 className="section-title">Tips</h3></div>
-          <ul className="muted" style={{ paddingLeft: 18, margin: 0 }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div className="card-header flush"><h3 className="section-title" style={{ margin: 0 }}>Tips</h3></div>
+          <ul className="muted" style={{ paddingLeft: 18, margin: 0, flex: 1 }}>
             <li>Platform fee (bps) is shown in the Streamer Dashboard</li>
             <li>Viewer item price is set in Room Settings (on-chain)</li>
             <li>You can re-claim after 120s to update metadata</li>

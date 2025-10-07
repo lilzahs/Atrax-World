@@ -11,12 +11,13 @@ export default function DonationPanel({
   onSuccess,
 }) {
   const [amount, setAmount] = useState('');
+  const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
 
   const parsed = useMemo(() => {
     const v = Math.max(0, Number(amount || 0));
-    const fee = (v * (Number(feeBps || 0) / 10000));
+    const fee = v * (Number(feeBps || 0) / 10000);
     const toStreamer = Math.max(0, v - fee);
     return { v, fee, toStreamer };
   }, [amount, feeBps]);
@@ -30,9 +31,10 @@ export default function DonationPanel({
       if (!programId) throw new Error('Chưa cấu hình chương trình');
       if (!devWallet) throw new Error('Thiếu dev wallet (chưa initialize config)');
       const lamports = Math.round(parsed.v * 1_000_000_000);
-      const sig = await donate({ connection, wallet, streamer, lamports, programId, devWallet });
+      const donorName = (name || '').slice(0, 16);
+      const sig = await donate({ connection, wallet, streamer, lamports, programId, devWallet, donorName });
       setMsg(`Thành công: ${sig}`);
-      onSuccess?.({ kind: 'donation', amount: parsed.v, streamer, sig });
+      onSuccess?.({ kind: 'donation', amount: parsed.v, streamer, sig, donorName });
     } catch (e) {
       setMsg(e.message || String(e));
     } finally {
@@ -44,12 +46,14 @@ export default function DonationPanel({
     <div className="card">
       <div className="card-header"><h2 className="section-title">Ủng hộ nhanh</h2></div>
       <div className="row" style={{ gap: 8 }}>
-        {quick.map(q => (
+        {quick.map((q) => (
           <button key={q} className="btn" onClick={() => setAmount(String(q))}>{q} SOL</button>
         ))}
       </div>
+      <label>Tên hiển thị (tối đa 16 ký tự)</label>
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tên của bạn (tuỳ chọn)" />
       <label>Số lượng (SOL)</label>
-      <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.1" />
+      <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.1" />
       <div className="muted" style={{ marginTop: 6 }}>
         Ước tính: Streamer nhận {parsed.toStreamer.toFixed(4)} SOL • Phí {parsed.fee.toFixed(4)} SOL
       </div>
@@ -60,4 +64,3 @@ export default function DonationPanel({
     </div>
   );
 }
-

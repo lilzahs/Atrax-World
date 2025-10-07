@@ -75,6 +75,7 @@ export default function App() {
   const [updAdmin, setUpdAdmin] = useState('');
 
   const [donStreamer, setDonStreamer] = useState('');
+  const [donName, setDonName] = useState('');
   const [donAmountSol, setDonAmountSol] = useState(0.1);
 
   const [buyItemId, setBuyItemId] = useState(1);
@@ -188,7 +189,7 @@ export default function App() {
     const [configPda] = findConfigPda();
     await withStatus(async () => {
       await program.methods
-        .donate!(amount)
+        .donate!(amount, donName || '')
         .accounts({ donor: donorPk, streamer, devWallet, config: configPda, systemProgram: SystemProgram.programId })
         .rpc();
     }, 'Donation sent');
@@ -546,6 +547,8 @@ export default function App() {
               <div className="muted">Quyá»n: báº¥t ká»³ vÃ­ nÃ o (donor kÃ½). PhÃ­ bá»‹ trá»« theo fee_bps vÃ  gá»­i vá» dev wallet.</div>
               <label>Streamer</label>
               <input value={donStreamer} onChange={(e) => setDonStreamer(e.target.value)} placeholder="Streamer pubkey" />
+              <label>Display Name (optional)</label>
+              <input value={donName} onChange={(e) => setDonName(e.target.value)} placeholder="Up to 16 chars" />
               <label>Amount (SOL)</label>
               <input type="number" value={donAmountSol} onChange={(e) => setDonAmountSol(Number(e.target.value))} />
               <button className="btn" disabled={!wallet.publicKey} onClick={onDonate}>Donate</button>

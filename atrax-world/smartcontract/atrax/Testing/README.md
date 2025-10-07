@@ -35,7 +35,7 @@ Use this section to track implementation progress across on-chain and Testing UI
   - [x] `update_admin`
   - [x] `initialize_room_settings` (item_price only)
   - [x] `update_room_settings` (item_price only)
-  - [x] `claim_room` (room_name, stream_url, 120s cooldown)
+  - [x] `claim_room` (room_name, stream_url; immediate overwrite)
   - [x] `choose_item` (fixed price from RoomSettings; fee to dev)
   - [ ] Extended room features (planned): `update_room_metadata`, `set_room_status`, `release_room`
 

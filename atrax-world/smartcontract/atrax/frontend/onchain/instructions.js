@@ -24,7 +24,7 @@ function getMethod(program, snake, camel) {
   return methods[camel] || methods[snake];
 }
 
-export async function donate({ connection, wallet, streamer, lamports, programId, configPda, devWallet, idl }) {
+export async function donate({ connection, wallet, streamer, lamports, programId, configPda, devWallet, donorName = '', idl }) {
   if (!wallet?.publicKey) throw new Error('Wallet not connected');
   const { PublicKey, SystemProgram } = await import('@solana/web3.js');
   const { BN } = await import('@coral-xyz/anchor');
@@ -36,9 +36,10 @@ export async function donate({ connection, wallet, streamer, lamports, programId
   const [derivedConfig] = PublicKey.findProgramAddressSync([teBytes('config')], program.programId);
   const configPk = configPda ? new PublicKey(configPda) : derivedConfig;
   const amount = new BN(lamports);
+  const name = donorName || '';
 
   const m = getMethod(program, 'donate', 'donate');
-  return await m(amount)
+  return await m(amount, name)
     .accounts({ donor, streamer: streamerPk, devWallet: devPk, config: configPk, systemProgram: SystemProgram.programId })
     .rpc();
 }

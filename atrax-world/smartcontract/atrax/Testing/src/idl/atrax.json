@@ -269,6 +269,10 @@
         {
           "name": "amount",
           "type": "u64"
+        },
+        {
+          "name": "donor_name",
+          "type": "string"
         }
       ]
     },
@@ -877,13 +881,13 @@
     },
     {
       "code": 6010,
-      "name": "RoomNotExpired",
-      "msg": "Room is not expired yet"
+      "name": "InvalidStreamer",
+      "msg": "Invalid streamer wallet for room"
     },
     {
       "code": 6011,
-      "name": "InvalidStreamer",
-      "msg": "Invalid streamer wallet for room"
+      "name": "NameTooLong",
+      "msg": "Donor name too long (max 16)"
     }
   ],
   "types": [
@@ -959,6 +963,10 @@
           {
             "name": "fee_bps",
             "type": "u16"
+          },
+          {
+            "name": "name",
+            "type": "string"
           }
         ]
       }
@@ -1043,10 +1051,6 @@
           {
             "name": "last_buyer",
             "type": "pubkey"
-          },
-          {
-            "name": "timestamp",
-            "type": "i64"
           }
         ]
       }

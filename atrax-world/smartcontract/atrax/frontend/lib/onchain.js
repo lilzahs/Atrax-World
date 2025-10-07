@@ -88,6 +88,5 @@ export async function fetchRoom(connection, programIdStr = ATRAX_PROGRAM_ID, str
   const playerWallet = new PublicKey(data.slice(off, off + 32)); off += 32;
   const latestChosenItem = data[off]; off += 1;
   const lastBuyer = new PublicKey(data.slice(off, off + 32)); off += 32;
-  const ts = dv.getBigInt64(off, true);
-  return { pda, roomName, streamUrl, playerWallet, latestChosenItem, lastBuyer, timestamp: Number(ts) };
+  return { pda, roomName, streamUrl, playerWallet, latestChosenItem, lastBuyer };
 }
