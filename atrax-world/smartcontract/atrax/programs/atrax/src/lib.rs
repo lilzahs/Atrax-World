@@ -36,8 +36,9 @@ pub mod atrax {
     } 
 
     // Viewer donates lamports: fee (bps) to dev wallet, rest to streamer.
-    pub fn donate(ctx: Context<Donate>, amount: u64) -> Result<()> {
+    pub fn donate(ctx: Context<Donate>, amount: u64, donor_name: String) -> Result<()> {
         require!(amount > 0, AtraxError::InvalidAmount);
+        require!(donor_name.len() <= 16, AtraxError::NameTooLong);
         // Verify dev wallet matches config
         require_keys_eq!(ctx.accounts.dev_wallet.key(), ctx.accounts.config.dev_wallet, AtraxError::InvalidDevWallet);
 
@@ -68,7 +69,7 @@ pub mod atrax {
             system_program::transfer(cpi_ctx, fee)?;
         }
 
-        emit!(DonationEvent { donor: ctx.accounts.donor.key(), streamer: ctx.accounts.streamer.key(), amount, fee_bps: ctx.accounts.config.fee_bps });
+        emit!(DonationEvent { donor: ctx.accounts.donor.key(), streamer: ctx.accounts.streamer.key(), amount, fee_bps: ctx.accounts.config.fee_bps, name: donor_name });
         Ok(())
     }
 
@@ -174,7 +175,7 @@ pub mod atrax {
         Ok(())
     }
 
-    // Claim a room bound to the streamer pubkey; expires (cooldown) after 120 seconds
+    // Claim a room bound to the streamer pubkey; immediate overwrite without cooldown
     pub fn claim_room(
         ctx: Context<ClaimRoom>,
         room_name: String,
@@ -184,19 +185,12 @@ pub mod atrax {
         require!(stream_url.len() <= 200, AtraxError::StreamUrlTooLong);
 
         let room = &mut ctx.accounts.room;
-        let now = Clock::get()?.unix_timestamp;
-
-        if room.timestamp != 0 {
-            let diff = now - room.timestamp;
-            require!(diff >= 120, AtraxError::RoomNotExpired);
-        }
 
         room.room_name = room_name;
         room.stream_url = stream_url;
         room.player_wallet = ctx.accounts.streamer.key();
         room.latest_chosen_item = 0;
         room.last_buyer = Pubkey::default();
-        room.timestamp = now;
 
         emit!(RoomClaimed { streamer: room.player_wallet });
         Ok(())
@@ -238,7 +232,6 @@ pub mod atrax {
         let room = &mut ctx.accounts.room;
         room.latest_chosen_item = item_type;
         room.last_buyer = ctx.accounts.buyer.key();
-        room.timestamp = Clock::get()?.unix_timestamp;
         emit!(ItemChosen { item_type, buyer: room.last_buyer });
         Ok(())
     }
@@ -290,12 +283,11 @@ pub struct Room {
     pub player_wallet: Pubkey,
     pub latest_chosen_item: u8,
     pub last_buyer: Pubkey,
-    pub timestamp: i64,
 }
 
 impl Room {
     // Strings have a 4-byte length prefix; allocate for 50 and 200 chars respectively
-    pub const LEN: usize = (4 + 50) + (4 + 200) + 32 + 1 + 32 + 8;
+    pub const LEN: usize = (4 + 50) + (4 + 200) + 32 + 1 + 32;
 }
 
 // =========================
@@ -483,6 +475,7 @@ pub struct DonationEvent {
     pub streamer: Pubkey,
     pub amount: u64,
     pub fee_bps: u16,
+    pub name: String,
 }
 
 #[event]
@@ -537,8 +530,8 @@ pub enum AtraxError {
     StreamUrlTooLong,
     #[msg("Invalid item type (0..6)")] 
     InvalidItemType,
-    #[msg("Room is not expired yet")] 
-    RoomNotExpired,
     #[msg("Invalid streamer wallet for room")] 
     InvalidStreamer,
+    #[msg("Donor name too long (max 16)")]
+    NameTooLong,
 }
